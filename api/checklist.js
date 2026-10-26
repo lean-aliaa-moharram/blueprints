@@ -7,7 +7,7 @@ import { handler, getQuery, readJson, send, httpError } from '../lib/http.js';
 import { query } from '../lib/db.js';
 import { findActiveLink, loadMeta, ITEM_RE } from '../lib/blueprints.js';
 import { checkViewParam } from '../lib/viewsig.js';
-import { classify, viewerEmail } from '../lib/viewer.js';
+import { classify, viewerEmail, nameFromEmail } from '../lib/viewer.js';
 
 // A team's path to production: when they asked, and when Lean switched them to production.
 const production = (l) => ({ requestedAt: l.production_requested_at || null, note: l.production_request_note || null,
@@ -22,6 +22,10 @@ async function withSummary(p, token) {
   return { ...p, summary: { video: r.video_name ? { name: r.video_name, bytes: Number(r.video_bytes) || 0 } : null, videoNaReason: r.video_na_reason,
     accountHolderName: r.account_holder_name, iban: tail(r.iban), accountNumber: tail(r.account_number) } };
 }
+
+// The Sandbox app token, as the page sees it: whether it's shared, when, by whom, and its last 4 characters.
+const appToken = (l) => (l.sandbox_app_token ? { shared: true, at: l.sandbox_app_token_at, by: l.sandbox_app_token_by ? nameFromEmail(l.sandbox_app_token_by) : null, ending: String(l.sandbox_app_token).slice(-4) } : { shared: false });
+const APP_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/;
 
 async function itemsFor(token, allowed) {
   const { rows } = await query('SELECT item, done, updated_at FROM team_checklist WHERE token = $1', [token]);
@@ -40,21 +44,31 @@ export default handler(['GET', 'POST'], async (req, res) => {
   if (input.view !== undefined) {
     if (req.method !== 'GET') throw httpError(403, 'Lean views are read only.');
     if (link.kind !== 'client' || checkViewParam(link.token, input.view) !== 'ok') throw httpError(403, 'This view has expired. Open it again from the admin page.');
-    return send(res, 200, { mode: 'view', teams: [{ name: link.label, environment: link.environment, production: await withSummary(production(link), link.token), items: await itemsFor(link.token, bp.items) }] });
+    return send(res, 200, { mode: 'view', teams: [{ name: link.label, environment: link.environment, production: await withSummary(production(link), link.token), appToken: appToken(link), items: await itemsFor(link.token, bp.items) }] });
   }
 
   if (req.method === 'GET') {
-    if (link.kind === 'client') return send(res, 200, { mode: 'edit', team: link.label, environment: link.environment, production: await withSummary(production(link), link.token), items: await itemsFor(link.token, bp.items) });
+    if (link.kind === 'client') return send(res, 200, { mode: 'edit', team: link.label, environment: link.environment, production: await withSummary(production(link), link.token), appToken: appToken(link), items: await itemsFor(link.token, bp.items) });
     const { rows } = await query(
-      `SELECT token, label, environment, environment_changed_at, production_requested_at, production_request_note FROM links WHERE slug = $1 AND kind = 'client' AND revoked_at IS NULL ORDER BY created_at`,
+      `SELECT token, label, environment, environment_changed_at, production_requested_at, production_request_note, sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by FROM links WHERE slug = $1 AND kind = 'client' AND revoked_at IS NULL ORDER BY created_at`,
       [link.slug],
     );
     const teams = [];
-    for (const t of rows) teams.push({ name: t.label, environment: t.environment, production: await withSummary(production(t), t.token), items: await itemsFor(t.token, bp.items) });
+    for (const t of rows) teams.push({ name: t.label, environment: t.environment, production: await withSummary(production(t), t.token), appToken: appToken(t), items: await itemsFor(t.token, bp.items) });
     return send(res, 200, { mode: 'view', teams });
   }
 
   if (link.kind !== 'client') throw httpError(403, 'Lean team links can view checklist progress but not change it.');
+  if (input.appToken !== undefined) { // the client team shares its Sandbox app token
+    const sharer = classify(viewerEmail(req, input), link.client_domains);
+    if (sharer.kind !== 'client') throw httpError(403, sharer.kind === 'lean' ? 'Lean team members can’t share the app token for the client.' : 'Only the client team can share the app token. Check the email you entered (Not you?).');
+    const value = typeof input.appToken === 'string' ? input.appToken.trim() : '';
+    if (!APP_TOKEN_RE.test(value)) throw httpError(400, 'That doesn’t look like an app token. Copy the application ID from the dev portal: letters, digits and dashes, with no spaces.');
+    const { rows } = await query(
+      `UPDATE links SET sandbox_app_token = $2, sandbox_app_token_at = now(), sandbox_app_token_by = $3 WHERE token = $1
+       RETURNING sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by`, [link.token, value, sharer.email]);
+    return send(res, 200, { appToken: appToken(rows[0]) });
+  }
   if (typeof input.item !== 'string' || !ITEM_RE.test(input.item) || !bp.items.includes(input.item)) {
     throw httpError(400, 'Unknown checklist item');
   }

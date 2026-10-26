@@ -190,3 +190,8 @@ CREATE INDEX IF NOT EXISTS comments_thread_idx ON comments (thread_id, created_a
 -- to the owner, plus anyone in notify_email ("Also notify").
 ALTER TABLE blueprints ADD COLUMN IF NOT EXISTS owner_email TEXT;
 ALTER TABLE blueprints ADD COLUMN IF NOT EXISTS owner_name TEXT;
+
+-- The client team's Sandbox app token, shared from the Developer portal setup guide (shown in full only in admin).
+ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token TEXT;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token_at TIMESTAMPTZ;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token_by TEXT;

@@ -204,6 +204,22 @@
     .bp-journey .j-err:empty{display:none}
     .bp-jwrap .j-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     .bp-mile.wait{background:#fff8e6;border-color:#e0a400;color:#8a5a00}
+    .bp-apptoken{border:1px solid #e5e7eb;border-left:3px solid var(--bright,#3dd68c);border-radius:0 12px 12px 0;padding:14px 16px;margin:6px 0 20px;background:#fff;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c2024}
+    .bp-apptoken .at-h{font-weight:700;font-size:14.5px;margin:0 0 4px}
+    .bp-apptoken .at-p{margin:0 0 10px;color:#4b5563;font-size:13.5px}
+    .bp-apptoken label{display:block;font-weight:700;font-size:13px;margin:0 0 5px}
+    .bp-apptoken .at-row{display:flex;gap:8px;flex-wrap:wrap}
+    .bp-apptoken input{flex:1;min-width:200px;font:14px ui-monospace,SFMono-Regular,Menlo,monospace;padding:9px 11px;border:1px solid #cfd4da;border-radius:9px}
+    .bp-apptoken .at-btn{font:700 13.5px system-ui,sans-serif;padding:9px 14px;border-radius:9px;border:1px solid #1c2024;background:#1c2024;color:#fff;cursor:pointer}
+    .bp-apptoken .at-btn.ghost{background:#fff;color:#1c2024;border-color:#cfd4da;padding:6px 12px}
+    .bp-apptoken .at-btn:disabled{opacity:.6;cursor:wait}
+    .bp-apptoken .at-warn{margin:8px 0 0;font-size:12.5px;color:#8a5a00}
+    .bp-apptoken .at-err{margin:6px 0 0;color:#b3261e;font-weight:600;font-size:13px}
+    .bp-apptoken .at-err:empty,.bp-apptoken .at-live:empty{display:none}
+    .bp-apptoken .at-ok{margin:0;color:#127a4a;font-weight:600}
+    .bp-apptoken .at-act{margin-top:8px}
+    .bp-apptoken .at-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    .bp-apptoken input:focus-visible,.bp-apptoken .at-btn:focus-visible{outline:2px solid var(--bright,#3dd68c);outline-offset:2px}
     .bp-who-ov{position:fixed;inset:0;z-index:600;background:rgba(15,18,22,.55);display:flex;align-items:center;justify-content:center;padding:20px}
     .bp-who{background:#fff;border-radius:16px;max-width:440px;width:100%;padding:26px 26px 20px;box-shadow:0 24px 70px rgba(0,0,0,.35);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c2024}
     .bp-who h2{font:800 19px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0 0 8px}
@@ -307,6 +323,7 @@
   let state = {};
   let environment = (cfg && cfg.environment) || 'sandbox'; // set by Lean in the admin page
   let production = {}; // { requestedAt, note, grantedAt } for the team shown
+  let appTok = null, appTokEditing = false; // the team's Sandbox app token: { shared, at, by, ending }
   let canRequest = false; // only a client team's own link can ask for production access
   let requestFormOpen = false;
   let readOnly = true;
@@ -711,7 +728,46 @@
     if (g && typeof window.openPanel === 'function') window.openPanel(g.dataset.jguide);
   });
 
+  // ---------- Share your Sandbox app token (after the Developer portal setup steps) ----------
+  function paintAppToken() {
+    const panel = document.getElementById('panel-dev'); if (!panel) return;
+    const list = panel.querySelector('.sp-body ol.sp-check'); if (!list) return;
+    let box = panel.querySelector('.bp-apptoken');
+    if (!box) { box = document.createElement('section'); box.className = 'bp-apptoken'; box.setAttribute('aria-label', 'Share your Sandbox app token with Lean'); list.after(box); }
+    if (box.querySelector('input') && document.activeElement === box.querySelector('input')) return; // don't redraw while typing
+    const canShare = !local && !view && cfg.kind === 'client' && clientViewer();
+    const shared = appTok && appTok.shared;
+    let body;
+    if (local) body = '<p class="at-p">The client team shares it from their blueprint link.</p>';
+    else if (shared && !appTokEditing) body = `<p class="at-ok">✓ Shared${appTok.at ? ' on ' + escH(fmtDate(appTok.at)) : ''}${appTok.by ? ' by ' + escH(appTok.by) : ''} · ends in <code>…${escH(appTok.ending || '')}</code></p>` + (canShare ? '<div class="at-act"><button type="button" class="at-btn ghost" data-at="change">Change</button></div>' : '');
+    else if (canShare) body = '<p class="at-p">When you’ve finished the Sandbox steps above, paste your Sandbox app token here: the application ID from step 3. Lean uses it to set up and support your integration.</p>' +
+      '<form class="at-form" novalidate><label for="at-in">Sandbox app token</label><div class="at-row"><input id="at-in" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="200"><button type="submit" class="at-btn">Share with Lean</button></div>' +
+      '<p class="at-warn">Only the app token. Never paste your client secret or webhook signing secret here.</p><p class="at-err" role="alert"></p>' +
+      (shared ? '<div class="at-act"><button type="button" class="at-btn ghost" data-at="cancel">Cancel</button></div>' : '') + '</form>';
+    else body = '<p class="at-p">Not shared yet. The client team shares it from their blueprint link.</p>';
+    box.innerHTML = '<div class="at-h">Share your Sandbox app token with Lean</div>' + body + '<p class="at-live" role="status" aria-live="polite"></p>';
+    const change = box.querySelector('[data-at="change"]'); if (change) change.onclick = () => { appTokEditing = true; paintAppToken(); const i = box.querySelector('input'); if (i) i.focus(); };
+    const cancel = box.querySelector('[data-at="cancel"]'); if (cancel) cancel.onclick = () => { appTokEditing = false; paintAppToken(); };
+    const form = box.querySelector('form');
+    if (form) form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input'), err = form.querySelector('.at-err'), btn = form.querySelector('[type=submit]');
+      err.textContent = '';
+      const value = input.value.trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/.test(value)) { err.textContent = 'That doesn’t look like an app token. Copy the application ID from the dev portal: letters, digits and dashes, with no spaces.'; input.focus(); return; }
+      btn.disabled = true; btn.textContent = 'Sharing…';
+      try {
+        const r = await fetch('/api/checklist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, appToken: value, viewer: viewerPayload() }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || 'It couldn’t be shared. Try again.');
+        appTok = j.appToken; appTokEditing = false; paintAppToken();
+        const live = box.querySelector('.at-live'); if (live) live.textContent = 'Shared with Lean.';
+      } catch (x) { btn.disabled = false; btn.textContent = 'Share with Lean'; err.textContent = x.message; input.focus(); }
+    });
+  }
+
   function paintAll() {
+    paintAppToken();
     paintJourney();
     paintMilestones();
     paintGuides();
@@ -740,7 +796,7 @@
       const sel = document.createElement('select');
       sel.setAttribute('aria-label', 'Client team');
       teams.forEach((t, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = t.name; if (i === teamIndex) o.selected = true; sel.appendChild(o); });
-      sel.addEventListener('change', () => { teamIndex = Number(sel.value); state = teams[teamIndex].items || {}; environment = teams[teamIndex].environment || 'sandbox'; production = teams[teamIndex].production || {}; paintViewLabels(); paintEnvironment(); paintAll(); });
+      sel.addEventListener('change', () => { teamIndex = Number(sel.value); state = teams[teamIndex].items || {}; environment = teams[teamIndex].environment || 'sandbox'; production = teams[teamIndex].production || {}; appTok = teams[teamIndex].appToken || null; paintViewLabels(); paintEnvironment(); paintAll(); });
       bar.appendChild(sel);
       const ro = document.createElement('span'); ro.textContent = 'Read only.'; bar.appendChild(ro);
     }
@@ -992,6 +1048,7 @@
         state = data.items || {};
         environment = data.environment || 'sandbox';
         production = data.production || {};
+        appTok = data.appToken || null;
         canRequest = !view && clientViewer();
       } else {
         readOnly = true;
@@ -999,6 +1056,7 @@
         state = teams.length ? teams[0].items || {} : {};
         environment = (teams[0] && teams[0].environment) || 'sandbox';
         production = (teams[0] && teams[0].production) || {};
+        appTok = (teams[0] && teams[0].appToken) || null;
         paintViewLabels();
       }
       paintEnvironment();

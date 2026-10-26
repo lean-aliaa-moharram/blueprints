@@ -131,6 +131,10 @@ td .who{font-weight:700}
 .notifyform label{display:block;margin-bottom:4px}
 .notifyform .by{margin:4px 0 0;font-weight:500}
 .by.storage{font-size:12.5px;margin:2px 0 8px}
+.apptok{margin:8px 0 0;max-width:420px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;font-size:12.5px}
+.apptok .k{display:block;color:var(--muted);font-weight:600;font-size:11.5px}
+.apptok-row{display:flex;gap:8px;align-items:center;margin:3px 0}
+.apptok code{font-size:12.5px;color:var(--ink);overflow-wrap:anywhere}
 .reqbox{margin:8px 0 0;min-width:280px;max-width:420px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:12.5px}
 .reqbox>summary{cursor:pointer;padding:8px 10px;font-weight:700;color:var(--ink)}
 .reqbox .rqrow{display:grid;grid-template-columns:1fr auto;grid-template-areas:"k b" "v b";column-gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line)}
@@ -473,6 +477,8 @@ function renderWhatsNew() {
     const who = esc(e.who ? (e.who.includes('@') ? e.who.split('@')[0].split(/[._-]/).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : e.who) : 'Someone');
     const what = e.type === 'production'
       ? `🚀 <b>${esc(e.team || 'The client team')}</b> requested production access${e.who ? ` (${who})` : ''}`
+      : e.type === 'apptoken'
+      ? `🔑 <b>${esc(e.team || 'The client team')}</b> shared their Sandbox app token${e.who ? ` (${who})` : ''}`
       : `💬 <b>${who}</b> ${e.reply ? 'replied to a comment' : 'commented'}${e.section ? ` in ${esc(e.section)}` : ''}`;
     const detail = e.type === 'comment' ? `<div class="wn-body">${e.quote ? `<span class="wn-q">“${esc(e.quote)}”</span> ` : ''}${esc(e.body || '')}</div>` : '';
     return `<li class="${isNew ? 'new' : ''}"><button type="button" class="wn-item" data-slug="${esc(e.slug)}" data-type="${e.type}">
@@ -487,7 +493,7 @@ function renderWhatsNew() {
   document.querySelectorAll('.wn-item').forEach((b) => b.addEventListener('click', () => {
     const type = b.dataset.type; go(b.dataset.slug);
     setTimeout(() => {
-      const target = type === 'production' ? document.querySelector('.reqbox') : $('commentsBox');
+      const target = type === 'production' ? document.querySelector('.reqbox') : type === 'apptoken' ? document.querySelector('.apptok') : $('commentsBox');
       if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     }, 60);
   }));
@@ -698,6 +704,7 @@ function renderDetail(bp) {
               ${(l.client_domains || []).length ? '' : `<div class="prodreq" role="note"><b>Set the client’s email domains.</b> Only emails on these domains count as ${esc(l.label)} and can tick. Until then, nobody can tick, so nothing is misattributed.</div>`}` : ''}
               ${l.kind === 'client' && l.production_requested_at && l.environment !== 'production' ? `<div class="prodreq" role="note"><b>Production requested</b> ${esc(when(l.production_requested_at))}. Review it below, then set Environment to Production to grant it.</div>` : ''}
               ${l.kind === 'client' && l.production_request ? requestDetails(l.production_request) : ''}
+              ${l.kind === 'client' ? (l.sandbox_app_token ? `<div class="apptok"><span class="k">Sandbox app token</span><div class="apptok-row"><code>${esc(l.sandbox_app_token)}</code><button type="button" class="ghost mini" data-copy="${esc(l.sandbox_app_token)}" aria-label="Copy the Sandbox app token">Copy</button></div><div class="by">Shared ${esc(when(l.sandbox_app_token_at))}${l.sandbox_app_token_by ? ` by ${esc(l.sandbox_app_token_by)}` : ''}</div></div>` : '<div class="by apptok-none">Sandbox app token: not shared yet</div>') : ''}
               ${l.kind === 'client' && l.environment === 'production' && l.environment_changed_at ? `<div class="by">Production since ${esc(when(l.environment_changed_at))}${l.production_requested_at ? `, requested ${esc(when(l.production_requested_at))}` : ''}</div>` : ''}
               ${l.kind === 'client' && (l.people || []).length ? `<div class="people">${['client', 'lean'].map((k) => { const ps = (l.people || []).filter((x) => (x.kind || 'client') === k); return ps.length ? `<div><span class="pk">${k === 'lean' ? 'Lean' : esc(l.label)}:</span> ${ps.map((x) => `<span title="${esc(x.email)}">${esc(x.name || x.email)}</span> <span class="pv">(${x.visits} ${x.visits === 1 ? 'visit' : 'visits'}, ${esc(when(x.last))})</span>`).join(', ')}</div>` : ''; }).join('')}</div>` : ''}</td>
             <td><span class="tag ${l.kind}">${l.kind === 'client' ? 'Client' : 'Lean'}</span></td>

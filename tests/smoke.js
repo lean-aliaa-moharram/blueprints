@@ -262,7 +262,7 @@ try {
   assert.ok(pv.includes('id="panel-cmi"') && (pv.match(/data-check="cmi-\d+"/g) || []).length === 31 && pv.includes('Gate 1 · Design review') && pv.includes('Gate 3 · Production readiness')); ok('the CMI has its own guide: three sign-off gates and the build checklist');
   assert.ok(pv.includes('class="st-ref"') && pv.includes('Acceptance criteria') && !pv.includes('legacy Consents API')); ok('CMI checklist items are written as stories with acceptance criteria');
   assert.ok(!/footer \.row2\{[^}]*border-top/.test(pv)); ok('the footer has a single divider');
-  assert.ok(!pv.includes('Prepared by Lean for') && pv.includes('Confidential, for discussion')); ok('the footer has no “Prepared by Lean for” line');
+  assert.ok(!pv.includes('Prepared by Lean for') && !pv.includes('class="foot-by"') && !pv.includes('Integration Blueprint - Prepared by Lean') && pv.includes('Confidential, for discussion')); ok('the footer has no “Prepared by Lean for” line');
   r = await builder({ action: 'save', slug: B, content: { ...content, summary: 'Saved draft.' } });
   assert.equal(r.status, 200); ok('saves a draft');
   r = await builder({ action: 'publish', slug: B, content, by: 'Smoke test' });
@@ -764,6 +764,22 @@ try {
   const actv = await (await admin('/api/admin/activity')).json();
   assert.ok(actv.events.some((e) => e.type === 'production' && e.team && e.who) && actv.events.some((e) => e.type === 'comment' && e.body) && actv.events.every((e, i, a) => i === 0 || a[i - 1].at >= e.at)); ok('What’s new lists production requests and review comments, newest first');
   assert.equal((await fetch(`${BASE}/api/admin/activity`)).status, 401); ok('only Lean can see What’s new');
+  // ---------- The Sandbox app token ----------
+  const share = (body) => fetch(`${BASE}/api/checklist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: client.token, ...body }) });
+  const APPTOK = '3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c';
+  assert.equal((await share({ appToken: APPTOK })).status, 403); ok('sharing the app token needs a client team email');
+  assert.equal((await share({ appToken: APPTOK, viewer: { email: 'will.smith@leantech.me' } })).status, 403); ok('a Lean colleague can’t share the app token for the client');
+  assert.equal((await share({ appToken: 'not a token!', viewer: { email: CLIENT_EMAIL } })).status, 400); ok('a malformed app token is refused');
+  let atr = await share({ appToken: '  ' + APPTOK + ' ', viewer: { email: CLIENT_EMAIL } }); let atj = await atr.json();
+  assert.equal(atr.status, 200); assert.ok(atj.appToken.shared && atj.appToken.ending === '9b0c' && atj.appToken.by === 'Tester' && !JSON.stringify(atj).includes(APPTOK)); ok('the client team shares the app token, and the page only gets its last 4 characters');
+  const pageAt = await (await fetch(`${BASE}/api/checklist?token=${client.token}`, { headers: { cookie: clientCookie } })).json();
+  assert.ok(pageAt.appToken.shared && !JSON.stringify(pageAt).includes(APPTOK)); ok('the client’s page shows it was shared, never the token itself');
+  const leanAt = await (await fetch(`${BASE}/api/checklist?token=${lean.token}`)).json();
+  assert.ok(leanAt.teams.some((t) => t.appToken && t.appToken.shared && t.appToken.ending === '9b0c') && !JSON.stringify(leanAt).includes(APPTOK)); ok('Lean views show it was shared, without the token');
+  ov = await (await admin('/api/admin/overview')).json();
+  assert.equal(ov.links.find((l) => l.token === client.token).sandbox_app_token, APPTOK); ok('the admin page shows the full app token');
+  const actAt = await (await admin('/api/admin/activity')).json();
+  assert.ok(actAt.events.some((e) => e.type === 'apptoken' && e.who === CLIENT_EMAIL)); ok('sharing the app token shows in What’s new');
   console.log(`\n${passed} checks passed.`);
 } catch (err) {
   console.error('\nFAILED after ' + passed + ' checks:', err.message);
