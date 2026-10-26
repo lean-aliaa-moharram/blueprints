@@ -258,7 +258,9 @@ try {
   assert.equal((pv.match(/data-check="otp-/g) || []).length, 6); ok('guide checklist items get stable keys');
   assert.ok(pv.includes('Reconciliation') && pv.includes('GET /recon')); ok('custom products render in cards and table');
   assert.ok(pv.includes('<span class="client-name">Acme Remit</span>')); ok('name-only header shows the client name');
-  assert.ok(pv.includes('<div class="phase" data-panels="otp e2e">')); ok('phase cards list their guide checklists for phase progress');
+  assert.ok(pv.includes('<div class="phase" data-panels="otp cmi e2e">')); ok('phase cards list their guide checklists for phase progress');
+  assert.ok(pv.includes('id="panel-cmi"') && (pv.match(/data-check="cmi-\d+"/g) || []).length === 31 && pv.includes('Gate 1 · Design review') && pv.includes('Gate 3 · Production readiness')); ok('the CMI has its own guide: three sign-off gates and the build checklist');
+  assert.ok(pv.includes('class="st-ref"') && pv.includes('Acceptance criteria') && !pv.includes('legacy Consents API')); ok('CMI checklist items are written as stories with acceptance criteria');
   assert.ok(!/footer \.row2\{[^}]*border-top/.test(pv)); ok('the footer has a single divider');
   assert.ok(!pv.includes('Prepared by Lean for') && pv.includes('Confidential, for discussion')); ok('the footer has no “Prepared by Lean for” line');
   r = await builder({ action: 'save', slug: B, content: { ...content, summary: 'Saved draft.' } });
@@ -427,7 +429,7 @@ try {
   assert.equal(tc.items['sample-1'].done, true); ok('shows each client team’s ticks');
   assert.ok(!pgr.teams.some((t) => t.label === 'Second team')); ok('revoked teams are left out of the breakdown');
   pgr = await (await admin(`/api/admin/progress?slug=${B}`)).json();
-  assert.equal(pgr.structure.phases[0].label, 'Phase 0'); assert.deepEqual(pgr.structure.phases[0].panels, ['dev', 'start', 'wh']); assert.equal(pgr.structure.phases[1].label, 'Phase 1'); assert.deepEqual(pgr.structure.phases[1].panels, ['otp', 'e2e']);
+  assert.equal(pgr.structure.phases[0].label, 'Phase 0'); assert.deepEqual(pgr.structure.phases[0].panels, ['dev', 'start', 'wh']); assert.equal(pgr.structure.phases[1].label, 'Phase 1'); assert.deepEqual(pgr.structure.phases[1].panels, ['otp', 'cmi', 'e2e']);
   assert.equal(pgr.structure.panels.otp.items.length, 6); assert.equal(pgr.structure.panels.otp.name, 'One-Time Payments'); ok('a form blueprint’s phases and guides are read on publish');
   assert.equal(pgr.teams[0].items['otp-2'].done, true); ok('the breakdown shows ticks per guide item');
   assert.equal((await admin('/api/admin/progress?slug=no-such-blueprint')).status, 404); ok('the breakdown reports a missing blueprint');
