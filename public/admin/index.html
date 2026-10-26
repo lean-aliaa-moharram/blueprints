@@ -131,6 +131,53 @@ td .who{font-weight:700}
 .notifyform label{display:block;margin-bottom:4px}
 .notifyform .by{margin:4px 0 0;font-weight:500}
 .by.storage{font-size:12.5px;margin:2px 0 8px}
+/* blueprint page: header, tabs, cards */
+.bphead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:0 0 14px}
+.bphead h2{margin:0 0 4px}
+.bphead .sub{margin:0;color:var(--muted);font-size:14px}
+.bphead-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bphead-r .primary,.bphead-r .ghost{height:36px}
+details.menuwrap{position:relative}
+details.menuwrap>summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-weight:700;font-size:13.5px;background:var(--card,#fff);color:var(--ink);user-select:none}
+details.menuwrap>summary::-webkit-details-marker{display:none}
+details.menuwrap .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:170px;background:var(--card,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column}
+details.menuwrap .menu button,details.menuwrap .menu label{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;font-size:13.5px;color:var(--ink)}
+details.menuwrap .menu button:hover,details.menuwrap .menu label:hover{background:var(--line)}
+details.menuwrap .menu .danger{color:#b3261e}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 18px;overflow-x:auto}
+.tabs .tab{all:unset;cursor:pointer;padding:9px 12px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--bright,#3dd68c)}
+.tabs .tab:focus-visible{outline:2px solid var(--bright,#3dd68c);outline-offset:2px;border-radius:6px}
+.tabn{display:inline-block;min-width:16px;padding:0 5px;margin-left:3px;border-radius:999px;background:var(--line);color:var(--ink);font-size:11px;line-height:16px;text-align:center}
+.tabpanel{max-width:980px}
+.card{border:1px solid var(--line);border-radius:14px;background:var(--card,#fff);padding:16px 18px;margin:0 0 22px}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.card-h h3{margin:0;font-size:17px}
+.card .envsel{margin:0}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 10px}
+.stats>div{background:var(--bg,#f6f7f8);border-radius:10px;padding:10px 12px}
+.stats b{display:block;font-size:16px;color:var(--ink)}
+.stats span{font-size:12px;color:var(--muted)}
+.card .people{margin:6px 0 10px;max-width:none;font-size:13px}
+.card .people .pl{display:block;color:var(--muted);font-size:12px;margin-bottom:2px}
+.card .people .pk{font-weight:700;color:var(--muted);margin-right:4px}
+.card .people .pv{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--line);font-size:11px;text-align:center;color:var(--ink)}
+.kv{display:flex;flex-direction:column;gap:2px;margin:6px 0 0}
+.kv-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;flex-wrap:wrap}
+.kv-row .k{width:110px;flex-shrink:0;color:var(--muted);font-weight:600;font-size:12.5px}
+.kv-row form{display:flex;gap:6px;flex:1;min-width:200px;margin:0;max-width:420px}
+.kv-row input{flex:1;min-width:0;font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
+.kv-row .apptok{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:0;padding:0;margin:0;background:none;max-width:none}
+.kv-row code{font-size:12.5px;overflow-wrap:anywhere}
+.subh{font-size:14px;margin:4px 0 8px;color:var(--ink)}
+.hint{color:var(--muted);font-size:12.5px;margin:6px 0 14px}
+table.slim td,table.slim th{padding-top:9px;padding-bottom:9px}
+table.slim .actions{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;justify-content:flex-end}
+table.slim .actions>button{width:auto;padding:6px 12px}
+table.slim details.menuwrap>summary{padding:6px 11px}
+details.flat>summary{display:none}
+.dangerzone{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px;padding:12px 14px;border:1px solid #f3c7c3;border-radius:12px;font-size:13px;color:var(--muted)}
+@media (max-width:720px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .engh{margin:14px 0 6px;font-size:13.5px}
 .engt{width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 6px}
 .engt th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
@@ -318,6 +365,7 @@ let drafting = false;
 const NEW = '__new';
 const VERT = '__verticals';
 const WHATS = '__whatsnew';
+let bpTab = 'overview'; // the blueprint page's open tab
 // "What's new": production requests and review comments since you last looked, on blueprints you own (or that
 // have no owner yet), with a switch to show every blueprint. Seen-ness is remembered in this browser.
 let activity = [], whatsAll = false, seenBefore = null, firstLoad = true;
@@ -427,9 +475,9 @@ const nameOf = (b) => b.name || b.title;
 function sideLine(b) {
   if (!b.published) return `Draft, saved ${when(b.draft_updated_at || b.updated_at)}`;
   const t = clientTeams(b.slug);
-  if (!t.length) return 'No client team link yet';
+  if (!t.length) return 'No client link yet';
   if (t.length > 1) return t.length + ' client teams';
-  return b.items ? `${esc(t[0].label)}: ${t[0].done} of ${b.items} checklist items done` : esc(t[0].label);
+  return b.items ? `${t[0].done} of ${b.items} done` : esc(t[0].label);
 }
 
 // ---------- top-level render ----------
@@ -493,13 +541,14 @@ function renderWhatsNew() {
   };
   const groups = [['Today', list.filter((e) => new Date(e.at) >= today)], ['Earlier', list.filter((e) => new Date(e.at) < today)]];
   $('main').innerHTML = `<h2>What’s new</h2>
-    <p class="sub">Production requests and review comments ${whatsAll ? 'on every blueprint' : 'on blueprints you own, and any without an owner yet'}, newest first.${myEmail() ? '' : ' Tell the admin page who you are (top right) to see just yours.'}</p>
+    <p class="sub">Production requests, comments and app tokens ${whatsAll ? 'on every blueprint' : 'on your blueprints'}${myEmail() ? '' : ' (set who you are, top right, to filter)'}.</p>
     <label class="wn-all"><input type="checkbox" id="wnAll"${whatsAll ? ' checked' : ''}> Show all blueprints</label>
     ${list.length ? groups.filter(([, g]) => g.length).map(([t, g]) => `<h3 class="grouph">${t}</h3><ul class="wn">${g.map(line).join('')}</ul>`).join('') : '<p class="by">Nothing yet. Production requests and review comments will show up here.</p>'}`;
   $('wnAll').addEventListener('change', (e) => { whatsAll = e.target.checked; renderWhatsNew(); });
   document.querySelectorAll('.wn-item').forEach((b) => b.addEventListener('click', () => {
     const type = b.dataset.type; go(b.dataset.slug);
     setTimeout(() => {
+      if (window.bpShowTab) window.bpShowTab(type === 'comment' ? 'comments' : 'overview');
       const target = type === 'production' ? document.querySelector('.reqbox') : type === 'apptoken' ? document.querySelector('.apptok') : $('commentsBox');
       if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     }, 60);
@@ -668,88 +717,126 @@ function renderDetail(bp) {
   const lastClient = visits.find((v) => v.kind === 'client' && v.viewer_kind !== 'lean');
   const built = bp.source === 'builder';
   const stateLine = !bp.published ? 'Not published yet.' : built ? `Published ${esc(when(bp.published_at))}${bp.uploaded_by ? ' by ' + esc(bp.uploaded_by) : ''}.` : `File ${bp.uploaded_by ? 'uploaded by ' + esc(bp.uploaded_by) + ', ' : 'updated '}${esc(when(bp.updated_at))}.`;
+  const prodReqOpen = activeClient && activeClient.production_requested_at && activeClient.environment !== 'production';
+  const openComments = bp.open_comments || 0;
+  const statusBits = !bp.published ? ['Not published yet'] : [
+    activeClient ? `${esc(activeClient.label)}: ${bp.items ? `${activeClient.done} of ${bp.items} done` : 'no checklist'}` : 'No client team link yet',
+    lastClient ? `last visit ${esc(when(lastClient.opened_at))}` : 'no client visits yet',
+    `${built ? 'published' : 'updated'} ${esc(when(built ? bp.published_at : bp.updated_at))}`,
+  ];
+  const people = (l) => ['client', 'lean'].map((k) => { const ps = (l.people || []).filter((x) => (x.kind || 'client') === k); return ps.length ? `<div><span class="pk">${k === 'lean' ? 'Lean' : esc(l.label)}</span> ${ps.map((x) => `<span title="${esc(x.email)}">${esc(x.name || x.email)}</span> <span class="pv">${x.visits}</span>`).join(', ')}</div>` : ''; }).join('');
+  const tab = (id, label, badge) => `<button type="button" role="tab" class="tab" data-tab="${id}" aria-selected="${bpTab === id}">${label}${badge ? ` <span class="tabn">${badge}</span>` : ''}</button>`;
   $('main').innerHTML = `
-    <h2>${esc(nameOf(bp))}</h2>
-    <div class="metaline">
-      <p class="sub">${bp.published ? (lastClient ? `Last opened by ${esc(lastClient.label)}, ${esc(when(lastClient.opened_at))}. ` : 'Not opened by a client yet. ') : ''}${stateLine}</p>
-      ${built ? `<button class="primary" id="editBp" style="height:36px">Edit blueprint</button>` : `${bp.published ? `<button class="primary" id="importBp" style="height:36px">Edit in form</button>` : ''}<button class="ghost" id="renameBp">Rename</button><label class="ghost" style="margin:0;cursor:pointer">Replace file<input id="replaceFile" type="file" accept=".html,.htm,text/html" hidden></label>`}
-      ${bp.published ? `<button class="ghost" id="reviewBp" title="Open a Lean-only copy where reviewers can comment">💬 Review &amp; comment</button>` : ''}
-      ${bp.published ? `<button class="ghost" data-dl="html" title="The published page as an HTML file">Download HTML</button><button class="ghost" data-dl="pdf" title="Opens a print-ready version: choose Save as PDF">Download PDF</button>` : ''}
+    <div class="bphead">
+      <div class="bphead-l"><h2>${esc(nameOf(bp))}</h2><p class="sub">${statusBits.join(' · ')}</p></div>
+      <div class="bphead-r">
+        ${built ? `<button class="primary" id="editBp">Edit blueprint</button>` : (bp.published ? `<button class="primary" id="importBp">Edit in form</button>` : '')}
+        ${bp.published ? `<button class="ghost" id="reviewBp" title="Open a Lean-only copy to comment on">💬 Review</button>` : ''}
+        <details class="menuwrap"><summary>More</summary><div class="menu">
+          ${bp.published ? `<button type="button" data-dl="html">Download HTML</button><button type="button" data-dl="pdf">Download PDF</button>` : ''}
+          ${built ? '' : `<button type="button" id="renameBp">Rename</button><label>Replace file<input id="replaceFile" type="file" accept=".html,.htm,text/html" hidden></label>`}
+        </div></details>
+      </div>
     </div>
-    ${built && bp.unpublished_changes && bp.published ? '<div class="warnbox">This blueprint has saved changes that aren’t published yet. Clients still see the last published version.</div>' : ''}
+    ${built && bp.unpublished_changes && bp.published ? '<div class="warnbox">Saved changes aren’t published yet.</div>' : ''}
     <div id="replaceMsg"></div>
-    ${bp.published ? `<details class="versions" id="commentsBox"${bp.open_comments ? ' open' : ''}><summary>Review comments${bp.open_comments ? ` · ${bp.open_comments} open` : ''}</summary><div id="commentsList"><p class="by">Loading…</p></div></details>` : ''}
-    ${bp.published ? `<details class="versions" id="engBox"><summary>Engagement: what the client team looks at</summary><div id="engList"><p class="by">Loading…</p></div></details>` : ''}
-    ${bp.published ? `<details class="versions" id="versionsBox"><summary>Version history</summary><div id="versionsList"><p class="by">Loading…</p></div></details>` : ''}
-    <p class="ownerline">${bp.owner_email ? `Owner: <b>${esc(bp.owner_name || bp.owner_email)}</b> (${esc(bp.owner_email)}) · <button type="button" class="linkish" id="ownerChange">Change owner</button>` : `No owner yet, so emails go to ${data.defaultNotify ? esc(data.defaultNotify) : 'nobody'}. <button type="button" class="linkish" id="ownerMe">Make me the owner</button>`}</p>
-    <form class="notifyform" id="notifyForm"><label for="notifyEmail">Also notify by email (optional, once email is set up): the owner is always included</label><div class="domrow"><input id="notifyEmail" type="text" value="${esc(bp.notify_email || '')}" placeholder="${esc(data.defaultNotify || 'you@leantech.me')}" autocomplete="email" spellcheck="false"><button class="ghost" type="submit">Save</button></div><p class="by">Comma-separate up to 5 addresses, for example Sales colleagues reviewing this blueprint.</p>
-      ${data.emailReady ? '' : `<p class="by">Email notifications are off: new production requests and review comments show in <b>What’s new</b>.</p>`}
-      ${data.emailReady && !bp.owner_email && !bp.notify_email && !data.defaultNotify ? `<div class="prodreq" role="note"><b>No one to email.</b> Set an owner, add an address above, or set <code>NOTIFY_EMAIL</code> in Vercel.</div>` : ''}</form>
-    ${data.storage ? `<p class="by storage">Recording storage: ${Math.round(data.storage.usedBytes / 1048576)} MB of ${Math.round(data.storage.budgetBytes / 1048576)} MB used. Delete recordings once you’ve reviewed them to keep within the free plan.</p>` : ''}
-    ${bp.published ? `
-    <section class="blk">
-      <h3>Share a team link</h3>
-      <p class="sub" style="margin:-6px 0 12px">${activeClient ? `The client team is <b>${esc(activeClient.label)}</b>: each blueprint has one, and everyone on it uses the same link. You can still add Lean team links.` : 'Each blueprint has one client team link, used by everyone on the client team. Lean team links are read only.'} <b>Open</b> on a client team’s row shows their page and progress, read only, and isn’t counted as a visit.</p>
+    <nav class="tabs" role="tablist" aria-label="${esc(nameOf(bp))}">
+      ${tab('overview', 'Overview', prodReqOpen ? '!' : '')}${tab('links', 'Links', links.length || '')}${bp.published ? tab('progress', 'Progress') + tab('engagement', 'Engagement') + tab('comments', 'Comments', openComments || '') : ''}${tab('settings', 'Settings')}
+    </nav>
+
+    <section class="tabpanel" data-panel="overview">
+      ${activeClient ? `
+      <div class="card">
+        <div class="card-h"><h3>${esc(activeClient.label)}</h3>
+          <label class="envsel">Environment <select data-env="${esc(activeClient.token)}" aria-label="Environment for ${esc(activeClient.label)}"><option value="sandbox"${activeClient.environment !== 'production' ? ' selected' : ''}>Sandbox</option><option value="production"${activeClient.environment === 'production' ? ' selected' : ''}>Production</option></select></label>
+        </div>
+        <div class="stats">
+          <div><b>${activeClient.views}</b><span>visits</span></div>
+          <div><b>${activeClient.views ? esc(dur(activeClient.seconds)) : '0 sec'}</b><span>time on page</span></div>
+          <div><b>${activeClient.last_view ? esc(when(activeClient.last_view)) : 'Never'}</b><span>last visit</span></div>
+          <div><b>${bp.items ? `${activeClient.done} of ${bp.items}` : '0'}</b><span>steps done</span></div>
+        </div>
+        ${(activeClient.people || []).length ? `<div class="people"><span class="pl">Viewed by</span>${people(activeClient)}</div>` : ''}
+        ${prodReqOpen ? `<div class="prodreq" role="note"><b>Production requested</b> ${esc(when(activeClient.production_requested_at))}. Review it, then set Environment to Production.</div>` : ''}
+        ${activeClient.production_request ? requestDetails(activeClient.production_request) : ''}
+        ${activeClient.environment === 'production' && activeClient.environment_changed_at ? `<p class="by">In production since ${esc(when(activeClient.environment_changed_at))}.</p>` : ''}
+        <div class="kv">
+          <div class="kv-row"><span class="k">App token</span>${activeClient.sandbox_app_token ? `<span class="apptok"><code>${esc(activeClient.sandbox_app_token)}</code><button type="button" class="ghost mini" data-copy="${esc(activeClient.sandbox_app_token)}" aria-label="Copy the Sandbox app token">Copy</button><span class="by">${esc(when(activeClient.sandbox_app_token_at))}${activeClient.sandbox_app_token_by ? `, ${esc(activeClient.sandbox_app_token_by)}` : ''}</span></span>` : '<span class="never">Not shared yet</span>'}</div>
+          <div class="kv-row"><span class="k">Email domains</span><form class="domsel" data-domform="${esc(activeClient.token)}"><input id="dom-${esc(activeClient.token)}" value="${esc((activeClient.client_domains || []).join(', '))}" placeholder="wise.com" autocomplete="off" spellcheck="false" aria-label="Client email domains"><button class="ghost mini" type="submit">Save</button></form></div>
+          ${(activeClient.client_domains || []).length ? '' : `<div class="prodreq" role="note">Add the client’s email domains, or they can’t tick steps.</div>`}
+        </div>
+        ${openComments ? `<p class="by"><button type="button" class="linkish" data-gotab="comments">${openComments} open review comment${openComments === 1 ? '' : 's'}</button></p>` : ''}
+      </div>` : `<div class="empty">No client team link yet. <button type="button" class="linkish" data-gotab="links">Create one</button></div>`}
+      <h3 class="subh">Recent visits</h3>
+      ${visits.length ? `<div class="list">${visits.slice(0, 8).map((v) => `
+        <div class="visit">
+          <time datetime="${esc(v.opened_at)}" title="${esc(full(v.opened_at))}">${esc(when(v.opened_at))}</time>
+          <div><strong>${esc(v.viewer_name || v.label)}</strong>${v.viewer_name ? ` <span class="d" style="display:inline">${esc(v.label)}</span>` : ''} ${v.kind === 'internal' || v.viewer_kind === 'lean' ? '<span class="tag">Lean</span>' : ''}</div>
+          <div class="num d">${dur(v.seconds_visible)}</div>
+        </div>`).join('')}</div>` : '<div class="empty">No visits yet.</div>'}
+    </section>
+
+    <section class="tabpanel" data-panel="links">
+      ${bp.published ? `
       <form class="share" id="shareForm">
         <div><label for="label">Team</label><input id="label" type="text" maxlength="80" placeholder="e.g. Wise" required></div>
         <div><label for="kind">Type</label><select id="kind"><option value="client"${activeClient ? ' disabled' : ''}>Client team</option><option value="internal"${activeClient ? ' selected' : ''}>Lean team</option></select></div>
         <div><label for="by">Your name</label><input id="by" type="text" maxlength="80" value="${esc(byName())}"></div>
         <div><button class="primary" type="submit">Create link</button></div>
       </form>
+      <p class="hint">One client team link per blueprint. Lean team links are read only.</p>
       <div class="err" id="shareErr" role="alert"></div>
-      <div id="created"></div>
-    </section>` : '<div class="empty" style="margin-bottom:34px">Publish this blueprint from the editor before sharing links.</div>'}
-    <section class="blk">
-      <h3>Links</h3>
-      ${revokedCount ? `<label class="opt" style="margin:-4px 0 12px"><input type="checkbox" id="showRevoked"${showRevoked ? ' checked' : ''}> Show revoked links (${revokedCount})</label>` : ''}
-      ${links.length ? `<div class="tablewrap"><table>
-        <thead><tr><th>Team</th><th>Type</th><th>Visits</th><th>Time on page</th><th>Last opened</th><th>Checklist</th><th></th></tr></thead>
+      <div id="created"></div>` : '<div class="empty">Publish this blueprint before sharing links.</div>'}
+      ${revokedCount ? `<label class="opt"><input type="checkbox" id="showRevoked"${showRevoked ? ' checked' : ''}> Show revoked (${revokedCount})</label>` : ''}
+      ${links.length ? `<div class="tablewrap"><table class="slim">
+        <thead><tr><th>Team</th><th>Type</th><th>Visits</th><th>Last opened</th><th></th></tr></thead>
         <tbody>${links.map((l) => `
           <tr class="${l.revoked_at ? 'revoked' : ''}">
-            <td><div class="who">${esc(l.label)}</div><div class="by">${l.created_by ? 'Created by ' + esc(l.created_by) + ', ' : 'Created '}${esc(when(l.created_at))}${l.revoked_at ? ', revoked' : ''}</div>
-              ${l.kind === 'client' && !l.revoked_at ? `<label class="envsel">Environment <select data-env="${esc(l.token)}" aria-label="Environment for ${esc(l.label)}"><option value="sandbox"${l.environment !== 'production' ? ' selected' : ''}>Sandbox</option><option value="production"${l.environment === 'production' ? ' selected' : ''}>Production</option></select></label>
-              <form class="domsel" data-domform="${esc(l.token)}"><label for="dom-${esc(l.token)}">Client email domains</label><div class="domrow"><input id="dom-${esc(l.token)}" value="${esc((l.client_domains || []).join(', '))}" placeholder="wise.com, transferwise.com" autocomplete="off" spellcheck="false"><button class="ghost" type="submit">Save</button></div></form>
-              ${(l.client_domains || []).length ? '' : `<div class="prodreq" role="note"><b>Set the client’s email domains.</b> Only emails on these domains count as ${esc(l.label)} and can tick. Until then, nobody can tick, so nothing is misattributed.</div>`}` : ''}
-              ${l.kind === 'client' && l.production_requested_at && l.environment !== 'production' ? `<div class="prodreq" role="note"><b>Production requested</b> ${esc(when(l.production_requested_at))}. Review it below, then set Environment to Production to grant it.</div>` : ''}
-              ${l.kind === 'client' && l.production_request ? requestDetails(l.production_request) : ''}
-              ${l.kind === 'client' ? (l.sandbox_app_token ? `<div class="apptok"><span class="k">Sandbox app token</span><div class="apptok-row"><code>${esc(l.sandbox_app_token)}</code><button type="button" class="ghost mini" data-copy="${esc(l.sandbox_app_token)}" aria-label="Copy the Sandbox app token">Copy</button></div><div class="by">Shared ${esc(when(l.sandbox_app_token_at))}${l.sandbox_app_token_by ? ` by ${esc(l.sandbox_app_token_by)}` : ''}</div></div>` : '<div class="by apptok-none">Sandbox app token: not shared yet</div>') : ''}
-              ${l.kind === 'client' && l.environment === 'production' && l.environment_changed_at ? `<div class="by">Production since ${esc(when(l.environment_changed_at))}${l.production_requested_at ? `, requested ${esc(when(l.production_requested_at))}` : ''}</div>` : ''}
-              ${l.kind === 'client' && (l.people || []).length ? `<div class="people">${['client', 'lean'].map((k) => { const ps = (l.people || []).filter((x) => (x.kind || 'client') === k); return ps.length ? `<div><span class="pk">${k === 'lean' ? 'Lean' : esc(l.label)}:</span> ${ps.map((x) => `<span title="${esc(x.email)}">${esc(x.name || x.email)}</span> <span class="pv">(${x.visits} ${x.visits === 1 ? 'visit' : 'visits'}, ${esc(when(x.last))})</span>`).join(', ')}</div>` : ''; }).join('')}</div>` : ''}</td>
+            <td><div class="who">${esc(l.label)}</div><div class="by">${esc(when(l.created_at))}${l.created_by ? ', ' + esc(l.created_by) : ''}${l.revoked_at ? ', revoked' : ''}</div></td>
             <td><span class="tag ${l.kind}">${l.kind === 'client' ? 'Client' : 'Lean'}</span></td>
             <td class="num">${l.views}</td>
-            <td class="num">${l.views ? `${dur(l.seconds)}<div class="by">${dur(Math.round(l.seconds / l.views))} per visit</div>` : ''}</td>
-            <td class="num" title="${esc(full(l.last_view))}">${l.last_view ? esc(when(l.last_view)) : '<span class="never">Not opened</span>'}</td>
-            <td class="num">${l.kind === 'client' ? (bp.items ? `${l.done} of ${bp.items}` : '') : '<span class="never">Read only</span>'}</td>
+            <td class="num" title="${esc(full(l.last_view))}">${l.last_view ? esc(when(l.last_view)) : '<span class="never">Never</span>'}</td>
             <td><div class="actions">
-              ${l.revoked_at ? '' : `<button class="ghost" data-open="${esc(l.token)}" data-kind="${l.kind}" title="${l.kind === 'client' ? `Opens ${esc(l.label)}’s page with their progress, read only. Not counted as a visit.` : 'Opens this Lean team link.'}">Open</button>`}
-              ${l.revoked_at ? '' : `<button class="ghost" data-copy="${esc(l.token)}">Copy link</button>`}
-              <button class="ghost ${l.revoked_at ? '' : 'danger'}" data-revoke="${esc(l.token)}" data-state="${l.revoked_at ? 'revoked' : 'active'}">${l.revoked_at ? 'Restore' : 'Revoke'}</button>
-              <button class="ghost danger" data-dellink="${esc(l.token)}" data-label="${esc(l.label)}" data-views="${l.views}" data-active="${l.revoked_at ? '' : '1'}">Delete</button>
+              ${l.revoked_at ? '' : `<button class="ghost" data-open="${esc(l.token)}" data-kind="${l.kind}" title="${l.kind === 'client' ? 'Their page and progress, read only. Not counted as a visit.' : 'Open this Lean team link'}">Open</button><button class="ghost" data-copylink="${esc(l.token)}">Copy link</button>`}
+              <details class="menuwrap"><summary aria-label="More for ${esc(l.label)}">⋯</summary><div class="menu">
+                <button type="button" class="${l.revoked_at ? '' : 'danger'}" data-revoke="${esc(l.token)}" data-state="${l.revoked_at ? 'revoked' : 'active'}">${l.revoked_at ? 'Restore' : 'Revoke'}</button>
+                <button type="button" class="danger" data-dellink="${esc(l.token)}" data-label="${esc(l.label)}" data-views="${l.views}" data-active="${l.revoked_at ? '' : '1'}">Delete</button>
+              </div></details>
             </div></td>
           </tr>`).join('')}</tbody></table></div>`
-        : `<div class="empty">${revokedCount ? `No active links. Tick “Show revoked links” to see the ${revokedCount} revoked.` : 'No links yet.'}</div>`}
+        : `<div class="empty">${revokedCount ? 'No active links.' : 'No links yet.'}</div>`}
     </section>
-    ${bp.published ? `<section class="blk">
-      <h3>Progress</h3>
-      <div id="progressBody"><div class="empty">Loading progress…</div></div>
-    </section>` : ''}
-    <section class="blk">
-      <h3>Recent visits</h3>
-      ${visits.length ? `<div class="list">${visits.slice(0, 40).map((v) => `
-        <div class="visit">
-          <time datetime="${esc(v.opened_at)}" title="${esc(full(v.opened_at))}">${esc(full(v.opened_at))}</time>
-          <div><strong>${v.viewer_name ? `${esc(v.viewer_name)}</strong> <span class="d" style="display:inline">via ${esc(v.label)}</span>` : `${esc(v.label)}</strong>`} ${v.kind === 'internal' || v.viewer_kind === 'lean' ? '<span class="tag">Lean</span>' : ''}<div class="d">${esc([device(v.user_agent), v.country].filter(Boolean).join(', '))}</div></div>
-          <div class="num d">${dur(v.seconds_visible)} on page</div>
-        </div>`).join('')}</div>`
-        : '<div class="empty">No visits yet. A visit is recorded once someone keeps the page open for 10 seconds.</div>'}
-    </section>
-    <section class="blk">
-      <h3>Delete blueprint</h3>
-      <div class="list" style="padding:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between">
-        <span class="d" style="color:var(--muted);font-size:14px;max-width:640px">Permanently deletes this blueprint, its ${allLinks.length} ${allLinks.length === 1 ? 'link' : 'links'}, every visit and every team’s checklist ticks. Links stop working straight away. This can’t be undone.</span>
-        <button class="ghost danger" id="delBp">Delete blueprint</button>
+
+    ${bp.published ? `
+    <section class="tabpanel" data-panel="progress"><div id="progressBody"><div class="empty">Loading…</div></div></section>
+    <section class="tabpanel" data-panel="engagement"><details class="flat" id="engBox"><summary>Engagement</summary><div id="engList"><p class="by">Loading…</p></div></details></section>
+    <section class="tabpanel" data-panel="comments"><details class="flat" id="commentsBox"><summary>Review comments</summary><div id="commentsList"><p class="by">Loading…</p></div></details></section>` : ''}
+
+    <section class="tabpanel" data-panel="settings">
+      <div class="kv">
+        <div class="kv-row"><span class="k">Owner</span><span>${bp.owner_email ? `<b>${esc(bp.owner_name || bp.owner_email)}</b> <span class="by">${esc(bp.owner_email)}</span> <button type="button" class="linkish" id="ownerChange">Change</button>` : `<span class="never">None</span> <button type="button" class="linkish" id="ownerMe">Make me the owner</button>`}</span></div>
+        <div class="kv-row"><span class="k">Also notify</span><form class="notifyform" id="notifyForm"><input id="notifyEmail" type="text" value="${esc(bp.notify_email || '')}" placeholder="name@leantech.me, …" autocomplete="email" spellcheck="false" aria-label="Also notify by email"><button class="ghost mini" type="submit">Save</button></form></div>
+        ${data.storage ? `<div class="kv-row"><span class="k">Recordings</span><span>${Math.round(data.storage.usedBytes / 1048576)} of ${Math.round(data.storage.budgetBytes / 1048576)} MB used</span></div>` : ''}
       </div>
+      <p class="hint">${data.emailReady ? 'Production requests and comments are emailed to the owner and anyone above.' : 'Email is off: requests and comments show in What’s new.'}</p>
+      ${bp.published ? `<details class="versions" id="versionsBox"><summary>Version history</summary><div id="versionsList"><p class="by">Loading…</p></div></details>` : ''}
+      <div class="dangerzone"><span>Delete this blueprint, its ${allLinks.length} ${allLinks.length === 1 ? 'link' : 'links'}, visits and ticks. This can’t be undone.</span><button class="ghost danger" id="delBp">Delete blueprint</button></div>
     </section>`;
+
+  // Tabs: the remembered tab is shown; opening one loads what it needs
+  const showTab = (id) => {
+    if (!document.querySelector(`.tabpanel[data-panel="${id}"]`)) id = 'overview';
+    bpTab = id;
+    document.querySelectorAll('.tabs .tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === id)));
+    document.querySelectorAll('.tabpanel').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+    const d = document.querySelector(`.tabpanel[data-panel="${id}"] details.flat`); if (d && !d.open) d.open = true;
+  };
+  window.bpShowTab = showTab;
+  document.querySelectorAll('.tabs .tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  document.querySelectorAll('[data-gotab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.gotab)));
+  document.querySelectorAll('details.menuwrap').forEach((m) => m.addEventListener('click', (e) => { if (e.target.closest('.menu button')) m.open = false; }));
+  setTimeout(() => showTab(bpTab), 0);
+
 
   if (!built) $('renameBp').addEventListener('click', async () => {
     const name = prompt('Name shown in the admin page, usually the client’s name:', nameOf(bp));
@@ -785,7 +872,7 @@ function renderDetail(bp) {
     try {
       const { threads } = await api('/api/admin/comments?slug=' + encodeURIComponent(bp.slug));
       const lean = allLinks.find((l) => l.kind === 'internal' && !l.revoked_at);
-      $('commentsList').innerHTML = `<p class="by">Lean-only comments for reviewing the blueprint before it’s shared. Clients never see them. ${lean ? `Click 💬 Review &amp; comment above, or open <a href="${esc(lean.url || ('/b/' + lean.token))}" target="_blank" rel="noopener">${esc(lean.label)}</a>, to add and answer comments.` : 'Click 💬 Review &amp; comment above to open a review copy, then send its link to reviewers.'}</p>` +
+      $('commentsList').innerHTML = `<p class="hint">Lean only. Add and answer comments with 💬 Review.</p>` +
         (threads.length ? `<ul class="clist">${threads.map((t) => `<li class="${t.status}"><div class="cq">${t.anchor.section ? `<b>${esc(t.anchor.section)}</b> · ` : ''}“${esc((t.anchor.quote || t.anchor.block || '').slice(0, 140))}”</div>${t.comments.map((c) => `<div class="cc"><b>${esc(c.author)}</b> <span class="by">${esc(when(c.at))}</span><div>${esc(c.body)}</div></div>`).join('')}<div class="by">${t.status === 'resolved' ? `Resolved${t.resolved_by ? ' by ' + esc(t.resolved_by) : ''}` : 'Open'}</div></li>`).join('')}</ul>` : '<p class="by">No comments yet.</p>');
     } catch (err) { $('commentsList').innerHTML = `<p class="by">${esc(err.message)}</p>`; }
   };
@@ -795,11 +882,11 @@ function renderDetail(bp) {
     if (!$('engBox').open) return;
     try {
       const e = await api('/api/admin/engagement?slug=' + encodeURIComponent(bp.slug));
-      if (!e.visits) { $('engList').innerHTML = '<p class="by">No client team visits yet. Once the client opens the blueprint, this shows which parts they look at and what they click.</p>'; return; }
+      if (!e.visits) { $('engList').innerHTML = '<p class="empty">No client team visits yet.</p>'; return; }
       const maxT = Math.max(1, ...e.time.map((r) => r.seconds)), maxA = Math.max(1, ...e.actions.map((r) => r.count));
       const pct = (n) => Math.round((n / e.visits) * 100) + '%';
       const bar = (v, max) => `<span class="engbar"><i style="width:${Math.max(2, Math.round((v / max) * 100))}%"></i></span>`;
-      $('engList').innerHTML = `<p class="by">From ${e.visits} client team visit${e.visits === 1 ? '' : 's'}. Time counts the part of the page in the middle of the screen (or the open guide) while the tab is in front. Lean visits aren’t included.</p>
+      $('engList').innerHTML = `<p class="hint">${e.visits} client team visit${e.visits === 1 ? '' : 's'}. Lean visits aren’t counted.</p>
         <h4 class="engh">Where people spend time</h4>
         ${e.time.length ? `<table class="engt"><thead><tr><th>Part of the page</th><th></th><th>Total time</th><th>Visits that reached it</th><th>Average per visit</th></tr></thead><tbody>${e.time.map((r) => `<tr><td>${esc(r.label || r.key)}</td><td>${bar(r.seconds, maxT)}</td><td>${esc(dur(r.seconds))}</td><td>${r.visits} (${pct(r.visits)})</td><td>${r.visits ? esc(dur(Math.round(r.seconds / r.visits))) : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="by">No time recorded yet.</p>'}
         <h4 class="engh">What people click</h4>
@@ -811,7 +898,7 @@ function renderDetail(bp) {
     if (!$('versionsBox').open) return;
     try {
       const { versions } = await api('/api/admin/versions?slug=' + encodeURIComponent(bp.slug));
-      $('versionsList').innerHTML = versions.length ? `<p class="by">Kept before every Replace file, publish, restore and switch to the form. The latest 20 are kept.</p><ul class="vlist">${versions.map((v) => `<li><span class="vt"><b>${esc(when(v.created_at))}</b> · ${esc(v.reason || 'Earlier version')}${v.created_by ? ` · ${esc(v.created_by)}` : ''} · ${Math.round((v.size_bytes || 0) / 1024)} KB</span><span class="va"><button class="ghost mini" data-vdl="html" data-v="${v.id}">HTML</button><button class="ghost mini" data-vdl="pdf" data-v="${v.id}">PDF</button><button class="ghost mini" data-vrestore="${v.id}">Restore</button></span></li>`).join('')}</ul>` : '<p class="by">No earlier versions yet. One is kept each time this blueprint is replaced, published or restored.</p>';
+      $('versionsList').innerHTML = versions.length ? `<ul class="vlist">${versions.map((v) => `<li><span class="vt"><b>${esc(when(v.created_at))}</b> · ${esc(v.reason || 'Earlier version')}${v.created_by ? ` · ${esc(v.created_by)}` : ''} · ${Math.round((v.size_bytes || 0) / 1024)} KB</span><span class="va"><button class="ghost mini" data-vdl="html" data-v="${v.id}">HTML</button><button class="ghost mini" data-vdl="pdf" data-v="${v.id}">PDF</button><button class="ghost mini" data-vrestore="${v.id}">Restore</button></span></li>`).join('')}</ul>` : '<p class="by">No earlier versions yet.</p>';
       $('versionsList').querySelectorAll('[data-vdl]').forEach((b) => b.addEventListener('click', () => download(b.dataset.vdl, b.dataset.v)));
       $('versionsList').querySelectorAll('[data-vrestore]').forEach((b) => b.addEventListener('click', async () => {
         if (!confirm('Restore this version? Clients see it straight away. The current version is kept, so you can switch back.')) return;
@@ -928,7 +1015,7 @@ function renderDetail(bp) {
       selected = null; history.replaceState(null, '', '#'); await load(); status('Blueprint deleted');
     } catch (err) { status(err.message); }
   });
-  document.querySelectorAll('[data-copy]').forEach((el) => el.addEventListener('click', () => copy(location.origin + '/b/' + el.dataset.copy)));
+  document.querySelectorAll('[data-copylink]').forEach((el) => el.addEventListener('click', () => copy(location.origin + '/b/' + el.dataset.copylink)));
   document.querySelectorAll('[data-revoke]').forEach((el) => el.addEventListener('click', async () => {
     const revoking = el.dataset.state === 'active';
     if (revoking && !confirm('Revoke this link? Anyone using it will see an "isn’t active" page.')) return;
