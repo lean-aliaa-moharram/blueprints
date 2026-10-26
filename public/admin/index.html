@@ -155,7 +155,7 @@ details.menuwrap .menu .danger{color:#b3261e}
 .card-h h3{margin:0;font-size:17px}
 .card .envsel{margin:0}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 10px}
-.stats>div{background:var(--bg,#f6f7f8);border-radius:10px;padding:10px 12px}
+.stats>div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .stats b{display:block;font-size:16px;color:var(--ink)}
 .stats span{font-size:12px;color:var(--muted)}
 .card .people{margin:6px 0 10px;max-width:none;font-size:13px}
@@ -222,6 +222,19 @@ td .by{font-size:12.5px;color:var(--muted)}
 .metaline .sub{margin:0}
 .warnbox{background:#fff4e5;color:#7a4b00;border-radius:12px;padding:12px 14px;font-size:13.5px;margin:0 0 24px}
 @media (prefers-color-scheme:dark){.warnbox,.tag.warn{background:#3a2a10;color:#ffd699}}
+/* dark mode for the newer parts of the page: same meaning, readable colours */
+@media (prefers-color-scheme:dark){
+  .reqbox,.apptok,.clist>li{background:var(--card)}
+  .prodreq,.clist .cq,.importdlg .inotes{background:#3a2a10;border-color:#6b4e1a;color:#ffd699}
+  .prodnote{color:#ffd699}
+  .prodbadge,.cmtbadge,.pg-mile.wait,.pill-st.dirty{background:#3a2a10;border-color:#6b4e1a;color:#ffd699}
+  .importdlg .ichecks>li.ok{background:#12301f}
+  .importdlg .ichecks>li.bad{background:#3a1b18}
+  .importdlg .ichecks ul{color:#f3c7c3}
+  .dangerzone{border-color:#5c2a24}
+  details.menuwrap .menu .danger,.dangerzone .danger{color:#ff8a80}
+}
+
 .pg-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px;font-size:13.5px;color:var(--muted)}
 .pg-top select{height:36px;width:auto;min-width:180px}
 .pg{display:grid;gap:12px}
