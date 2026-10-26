@@ -780,6 +780,24 @@ try {
   assert.equal(ov.links.find((l) => l.token === client.token).sandbox_app_token, APPTOK); ok('the admin page shows the full app token');
   const actAt = await (await admin('/api/admin/activity')).json();
   assert.ok(actAt.events.some((e) => e.type === 'apptoken' && e.who === CLIENT_EMAIL)); ok('sharing the app token shows in What’s new');
+  // ---------- Engagement: what the client team looks at and clicks ----------
+  const engVisit = (await openAs(client.token, clientCookie)).visit;
+  const beat = (visit, engage) => json('/api/track', { token: client.token, visit, event: 'beat', seconds: 30, engage });
+  assert.equal((await beat(engVisit, { t: { 'sec:launch-plan': ['Launch Plan', 20], 'guide:otp': ['Guide: One-Time Payments', 10], 'BAD KEY!': ['x', 5] }, a: { 'guide-open:otp': ['Opened guide: One-Time Payments', 1], 'link:figma': ['Opened the Figma file', 1] } })).status, 200);
+  await beat(engVisit, { t: { 'sec:launch-plan': ['Launch Plan', 15], 'journey:1': ['Journey 1: Top up from your bank', 9999] }, a: { 'guide-open:otp': ['Opened guide: One-Time Payments', 1] } });
+  const willVisit = (await openAs(client.token, willCookie)).visit;
+  await json('/api/track', { token: client.token, visit: willVisit, event: 'beat', seconds: 30, engage: { t: { 'sec:pain-points': ['Pain points', 50] }, a: {} } });
+  await json('/api/track', { token: lean.token, visit: engVisit, event: 'beat', seconds: 5, engage: { t: { 'sec:launch-plan': ['Launch Plan', 100] }, a: {} } });
+  const eng = await (await admin('/api/admin/engagement?slug=' + SLUG)).json();
+  const tk = Object.fromEntries(eng.time.map((r) => [r.key, r])), ak = Object.fromEntries(eng.actions.map((r) => [r.key, r]));
+  assert.ok(tk['sec:launch-plan'] && tk['sec:launch-plan'].seconds === 35 && tk['sec:launch-plan'].label === 'Launch Plan'); ok('time in each part of the page is recorded, and repeated reports add up');
+  assert.ok(tk['guide:otp'].seconds === 10 && ak['guide-open:otp'].count === 2 && ak['link:figma'].count === 1); ok('time in guides and what was clicked are recorded');
+  assert.equal(tk['journey:1'].seconds, 120); ok('an oversized report is capped');
+  assert.ok(!eng.time.some((r) => r.key.includes('BAD'))); ok('bad keys are dropped');
+  assert.ok(!tk['sec:pain-points']); ok('a Lean colleague’s engagement is never counted');
+  assert.equal(tk['sec:launch-plan'].seconds, 35); ok('a visit can only be written to through its own link');
+  assert.ok(eng.visits >= 1 && eng.time[0].seconds >= eng.time[eng.time.length - 1].seconds); ok('the admin page gets engagement, busiest first');
+  assert.equal((await fetch(`${BASE}/api/admin/engagement?slug=${SLUG}`)).status, 401); ok('only Lean can see engagement');
   console.log(`\n${passed} checks passed.`);
 } catch (err) {
   console.error('\nFAILED after ' + passed + ' checks:', err.message);

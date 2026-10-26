@@ -10,6 +10,22 @@ import { findActiveLink } from '../lib/blueprints.js';
 import { classify, viewerCookie, clearViewerCookie, isSecure } from '../lib/viewer.js';
 
 const VISIT_RE = /^[0-9a-f-]{36}$/;
+const KEY_RE = /^[a-z0-9][a-z0-9:._-]{0,79}$/;
+// { t: { key: [label, seconds] }, a: { key: [label, count] } } from the page, checked and capped.
+function cleanEngagement(e) {
+  const rows = [];
+  if (!e || typeof e !== 'object') return rows;
+  for (const [kind, src, cap] of [['time', e.t, 120], ['action', e.a, 50]]) {
+    if (!src || typeof src !== 'object') continue;
+    for (const [key, v] of Object.entries(src).slice(0, 60)) {
+      if (!KEY_RE.test(key) || !Array.isArray(v)) continue;
+      const label = typeof v[0] === 'string' ? v[0].replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, 140) : '';
+      const n = Math.max(0, Math.min(cap, Math.round(Number(v[1]) || 0)));
+      if (n) rows.push([key, kind, label, kind === 'time' ? n : 0, kind === 'action' ? n : 0]);
+    }
+  }
+  return rows;
+}
 
 export default handler(['POST'], async (req, res) => {
   const body = await readJson(req);
@@ -31,6 +47,17 @@ export default handler(['POST'], async (req, res) => {
       `UPDATE views SET last_seen_at = now(), seconds_visible = LEAST(seconds_visible + $3, 14400)
        WHERE session_id = $1 AND token = $2`,
       [body.visit, link.token, seconds]);
+    const rows = cleanEngagement(body.engage);
+    if (rows.length) {
+      // Only for this link's own visit; repeated reports add up.
+      await query(
+        `INSERT INTO engagement (session_id, key, kind, label, seconds, count)
+         SELECT $1, k, kd, lb, s, c FROM unnest($3::text[], $4::text[], $5::text[], $6::int[], $7::int[]) AS t(k, kd, lb, s, c)
+          WHERE EXISTS (SELECT 1 FROM views WHERE session_id = $1 AND token = $2)
+         ON CONFLICT (session_id, key) DO UPDATE SET seconds = engagement.seconds + EXCLUDED.seconds, count = engagement.count + EXCLUDED.count,
+           label = coalesce(nullif(EXCLUDED.label, ''), engagement.label)`,
+        [body.visit, link.token, rows.map((r) => r[0]), rows.map((r) => r[1]), rows.map((r) => r[2]), rows.map((r) => r[3]), rows.map((r) => r[4])]);
+    }
     return send(res, 200, { ok: true });
   }
   throw httpError(400, 'Unknown event');

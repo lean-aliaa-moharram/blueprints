@@ -302,3 +302,16 @@ Each blueprint has an **owner**: the Lean person who created it.
 - **Each item links** straight to its blueprint, with the request or comments section open.
 
 Email is optional. Without `RESEND_API_KEY`, nothing is emailed, and What's new is where requests and comments show up.
+
+
+## Engagement: what the client team looks at
+
+Each blueprint's page in `/admin` has an **Engagement** section, covering client team visits only (never Lean colleagues or other emails).
+
+**Where people spend time:** time in each part of the page (the top of the page, summary, pain points, each journey, design reference, Launch Plan, "Your path to production") and in each guide while it's open.
+- **How it's counted:** each second the tab is in front goes to the part in the middle of the screen, or to the open guide, so scrolling past something doesn't count.
+- **What's shown:** total time, visits that reached it (at least 3 seconds), and average time per visit.
+
+**What people click:** opening each guide, Lean doc and API reference links, the Figma file, full-screen diagrams, downloading the CMI requirements, ticking steps, opening the production request form and sharing the Sandbox app token.
+
+**How it's sent:** with the existing time reports (every 30 seconds and on leaving), so there are no extra requests. It's stored per visit in `engagement`, and deleting a visit deletes its engagement.

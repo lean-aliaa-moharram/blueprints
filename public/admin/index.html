@@ -131,6 +131,13 @@ td .who{font-weight:700}
 .notifyform label{display:block;margin-bottom:4px}
 .notifyform .by{margin:4px 0 0;font-weight:500}
 .by.storage{font-size:12.5px;margin:2px 0 8px}
+.engh{margin:14px 0 6px;font-size:13.5px}
+.engt{width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 6px}
+.engt th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.engt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.engt td:first-child{max-width:340px}
+.engbar{display:inline-block;width:140px;height:8px;border-radius:999px;background:var(--line);overflow:hidden;vertical-align:middle}
+.engbar i{display:block;height:100%;background:var(--bright,#3dd68c)}
 .apptok{margin:8px 0 0;max-width:420px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;font-size:12.5px}
 .apptok .k{display:block;color:var(--muted);font-weight:600;font-size:11.5px}
 .apptok-row{display:flex;gap:8px;align-items:center;margin:3px 0}
@@ -672,6 +679,7 @@ function renderDetail(bp) {
     ${built && bp.unpublished_changes && bp.published ? '<div class="warnbox">This blueprint has saved changes that aren’t published yet. Clients still see the last published version.</div>' : ''}
     <div id="replaceMsg"></div>
     ${bp.published ? `<details class="versions" id="commentsBox"${bp.open_comments ? ' open' : ''}><summary>Review comments${bp.open_comments ? ` · ${bp.open_comments} open` : ''}</summary><div id="commentsList"><p class="by">Loading…</p></div></details>` : ''}
+    ${bp.published ? `<details class="versions" id="engBox"><summary>Engagement: what the client team looks at</summary><div id="engList"><p class="by">Loading…</p></div></details>` : ''}
     ${bp.published ? `<details class="versions" id="versionsBox"><summary>Version history</summary><div id="versionsList"><p class="by">Loading…</p></div></details>` : ''}
     <p class="ownerline">${bp.owner_email ? `Owner: <b>${esc(bp.owner_name || bp.owner_email)}</b> (${esc(bp.owner_email)}) · <button type="button" class="linkish" id="ownerChange">Change owner</button>` : `No owner yet, so emails go to ${data.defaultNotify ? esc(data.defaultNotify) : 'nobody'}. <button type="button" class="linkish" id="ownerMe">Make me the owner</button>`}</p>
     <form class="notifyform" id="notifyForm"><label for="notifyEmail">Also notify by email (optional, once email is set up): the owner is always included</label><div class="domrow"><input id="notifyEmail" type="text" value="${esc(bp.notify_email || '')}" placeholder="${esc(data.defaultNotify || 'you@leantech.me')}" autocomplete="email" spellcheck="false"><button class="ghost" type="submit">Save</button></div><p class="by">Comma-separate up to 5 addresses, for example Sales colleagues reviewing this blueprint.</p>
@@ -782,6 +790,22 @@ function renderDetail(bp) {
     } catch (err) { $('commentsList').innerHTML = `<p class="by">${esc(err.message)}</p>`; }
   };
   if ($('commentsBox')) { if ($('commentsBox').open) loadComments(); $('commentsBox').addEventListener('toggle', () => { if ($('commentsBox').open) loadComments(); }); }
+  // Engagement: where the client team spends time, and what they click (client team visits only)
+  if ($('engBox')) $('engBox').addEventListener('toggle', async () => {
+    if (!$('engBox').open) return;
+    try {
+      const e = await api('/api/admin/engagement?slug=' + encodeURIComponent(bp.slug));
+      if (!e.visits) { $('engList').innerHTML = '<p class="by">No client team visits yet. Once the client opens the blueprint, this shows which parts they look at and what they click.</p>'; return; }
+      const maxT = Math.max(1, ...e.time.map((r) => r.seconds)), maxA = Math.max(1, ...e.actions.map((r) => r.count));
+      const pct = (n) => Math.round((n / e.visits) * 100) + '%';
+      const bar = (v, max) => `<span class="engbar"><i style="width:${Math.max(2, Math.round((v / max) * 100))}%"></i></span>`;
+      $('engList').innerHTML = `<p class="by">From ${e.visits} client team visit${e.visits === 1 ? '' : 's'}. Time counts the part of the page in the middle of the screen (or the open guide) while the tab is in front. Lean visits aren’t included.</p>
+        <h4 class="engh">Where people spend time</h4>
+        ${e.time.length ? `<table class="engt"><thead><tr><th>Part of the page</th><th></th><th>Total time</th><th>Visits that reached it</th><th>Average per visit</th></tr></thead><tbody>${e.time.map((r) => `<tr><td>${esc(r.label || r.key)}</td><td>${bar(r.seconds, maxT)}</td><td>${esc(dur(r.seconds))}</td><td>${r.visits} (${pct(r.visits)})</td><td>${r.visits ? esc(dur(Math.round(r.seconds / r.visits))) : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="by">No time recorded yet.</p>'}
+        <h4 class="engh">What people click</h4>
+        ${e.actions.length ? `<table class="engt"><thead><tr><th>Action</th><th></th><th>Times</th><th>Visits</th></tr></thead><tbody>${e.actions.map((r) => `<tr><td>${esc(r.label || r.key)}</td><td>${bar(r.count, maxA)}</td><td>${r.count}</td><td>${r.visits} (${pct(r.visits)})</td></tr>`).join('')}</tbody></table>` : '<p class="by">No clicks recorded yet.</p>'}`;
+    } catch (err) { $('engList').innerHTML = `<p class="by">${esc(err.message)}</p>`; }
+  });
   // Version history
   if ($('versionsBox')) $('versionsBox').addEventListener('toggle', async () => {
     if (!$('versionsBox').open) return;

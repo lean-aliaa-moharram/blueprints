@@ -6,6 +6,7 @@ import builder from '../lib/admin/builder.js';
 import comments from '../lib/admin/comments.js';
 import draft from '../lib/admin/draft.js';
 import download from '../lib/admin/download.js';
+import engagement from '../lib/admin/engagement.js';
 import versions from '../lib/admin/versions.js';
 import links from '../lib/admin/links.js';
 import overview from '../lib/admin/overview.js';
@@ -15,7 +16,7 @@ import progress from '../lib/admin/progress.js';
 import verticals from '../lib/admin/verticals.js';
 import view from '../lib/admin/view.js';
 
-const ROUTES = { activity, blueprints, builder, comments, download, draft, links, overview, products, progress, recordings, verticals, versions, view };
+const ROUTES = { activity, blueprints, builder, comments, download, engagement, draft, links, overview, products, progress, recordings, verticals, versions, view };
 
 export default async function admin(req, res) {
   const u = new URL(req.url, 'http://local');

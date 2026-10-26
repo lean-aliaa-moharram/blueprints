@@ -103,10 +103,66 @@
       if (useBeacon && navigator.sendBeacon) { navigator.sendBeacon('/api/track', new Blob([data], { type: 'text/plain' })); return; }
       fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: data, keepalive: true }).catch(() => {});
     };
+    // ---------- Engagement: which parts of the page are looked at, and what's clicked ----------
+    // Each second the page is in front goes to the part in the middle of the screen (or the open guide), so
+    // scrolling past something doesn't count. Sent with the time reports above; no extra requests.
+    const ENG = { t: {}, a: {} };
+    const slug = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+    const txt = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+    const add = (bucket, key, label, n) => { const cur = bucket[key]; bucket[key] = [label || (cur && cur[0]) || key, ((cur && cur[1]) || 0) + n]; };
+    const act = (key, label) => add(ENG.a, key, label, 1);
+    const regions = () => {
+      const out = [];
+      const hero = document.querySelector('header.hero'); if (hero) out.push({ el: hero, key: 'sec:top', label: 'Top of the page' });
+      document.querySelectorAll('section').forEach((sec) => {
+        const label = txt(sec.querySelector('.sec-title')) || (sec.querySelector('.execsum') ? 'Summary' : '');
+        if (label) out.push({ el: sec, key: 'sec:' + slug(label), label });
+      });
+      document.querySelectorAll('.journeys > .journey').forEach((j, i) => out.push({ el: j, key: 'journey:' + (i + 1), label: `Journey ${i + 1}: ${txt(j.querySelector('.jtitle'))}`, inner: true }));
+      const fig = document.querySelector('.figwrap'); if (fig) out.push({ el: fig, key: 'sec:design-reference', label: 'Design reference', inner: true });
+      const path = document.querySelector('.bp-jmain'); if (path) out.push({ el: path, key: 'sec:path-to-production', label: 'Your path to production', inner: true });
+      return out;
+    };
+    setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      const guide = document.querySelector('aside.spanel.open');
+      if (guide) { add(ENG.t, 'guide:' + guide.id.replace(/^panel-/, ''), 'Guide: ' + txt(guide.querySelector('.sp-title')), 1); return; }
+      const y = window.innerHeight / 2; let best = null;
+      for (const r of regions()) { const b = r.el.getBoundingClientRect(); if (b.top <= y && b.bottom >= y && (!best || r.inner)) best = r; }
+      if (best) add(ENG.t, best.key, best.label, 1);
+    }, 1000);
+    // What's clicked
+    document.addEventListener('click', (e) => {
+      const t = e.target; if (!t || !t.closest) return;
+      const a = t.closest('a[href]');
+      if (a) {
+        const href = a.getAttribute('href') || '';
+        if (/figma\.com/.test(href)) act('link:figma', 'Opened the Figma file' + (txt(a) ? ': ' + txt(a).slice(0, 60) : ''));
+        else if (/docs\.leantech\.me\/[^ ]*\/reference\//.test(href)) act('link:api:' + slug(href.split('/').pop()), 'API reference: ' + txt(a).slice(0, 80));
+        else if (/docs\.leantech\.me/.test(href)) act('link:docs:' + slug(href.split('/').pop()), 'Lean docs: ' + txt(a).slice(0, 80));
+        else if (/^https?:/.test(href)) { try { act('link:other:' + slug(new URL(href).hostname), 'Link: ' + new URL(href).hostname); } catch {} }
+        return;
+      }
+      if (t.closest('.sp-zoom')) act('zoom:diagram', 'Full-screen diagram');
+      else if (t.closest('.att-link')) act('download:cmi-requirements', 'Downloaded the CMI requirements');
+      else if (t.closest('[data-jopen]')) act('production:form', 'Opened the production request form');
+      else if (t.closest('.bp-check') && !readOnly) act('tick', 'Ticked or unticked a step');
+    }, true);
+    document.addEventListener('submit', (e) => { if (e.target && e.target.closest && e.target.closest('.bp-apptoken')) act('apptoken:share', 'Shared the Sandbox app token'); }, true);
+    // Opening a guide (from View guide, Open the guide, Next / Previous or a link)
+    if (typeof window.openPanel === 'function') {
+      const open = window.openPanel;
+      window.openPanel = function (id) { const el = document.getElementById('panel-' + id); act('guide-open:' + slug(id), 'Opened guide: ' + (txt(el && el.querySelector('.sp-title')) || id)); return open.apply(this, arguments); };
+    }
+    const takeEngagement = () => {
+      if (!Object.keys(ENG.t).length && !Object.keys(ENG.a).length) return undefined;
+      const out = { t: ENG.t, a: ENG.a }; ENG.t = {}; ENG.a = {}; return out;
+    };
     const report = (event, useBeacon) => {
       tick();
       const delta = Math.floor(visibleMs / 1000) - reported;
-      if (delta >= BEAT_EVERY || (event === 'leave' && delta > 0)) { reported += delta; post({ event, seconds: delta }, useBeacon); }
+      const hasEng = Object.keys(ENG.t).length || Object.keys(ENG.a).length;
+      if (delta >= BEAT_EVERY || (event === 'leave' && (delta > 0 || hasEng))) { reported += delta; post({ event, seconds: delta, engage: takeEngagement() }, useBeacon); }
     };
     setInterval(() => { if (document.visibilityState === 'visible') report('beat'); }, 5000);
     const onHide = () => { report('leave', true); lastTick = null; };

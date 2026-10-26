@@ -187,5 +187,17 @@ BEGIN
   ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token TEXT;
   ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token_at TIMESTAMPTZ;
   ALTER TABLE links ADD COLUMN IF NOT EXISTS sandbox_app_token_by TEXT;
+
+  -- Engagement within a visit: seconds spent in each part of the page (kind 'time': sections, journeys, guides) and
+  -- what was clicked (kind 'action'). Removed with its visit.
+  CREATE TABLE IF NOT EXISTS engagement (
+    session_id TEXT NOT NULL REFERENCES views(session_id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    label TEXT,
+    seconds INTEGER NOT NULL DEFAULT 0,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, key)
+  );
 END
 $$;
