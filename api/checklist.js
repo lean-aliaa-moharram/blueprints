@@ -24,7 +24,12 @@ async function withSummary(p, token) {
 }
 
 // The Sandbox app token, as the page sees it: whether it's shared, when, by whom, and its last 4 characters.
-const appToken = (l) => (l.sandbox_app_token ? { shared: true, at: l.sandbox_app_token_at, by: l.sandbox_app_token_by ? nameFromEmail(l.sandbox_app_token_by) : null, ending: String(l.sandbox_app_token).slice(-4) } : { shared: false });
+// The token for the team's current environment: the production one once Lean switches them to Production.
+const appToken = (l) => {
+  const env = l.environment === 'production' ? 'production' : 'sandbox';
+  const v = l[`${env}_app_token`], at = l[`${env}_app_token_at`], by = l[`${env}_app_token_by`];
+  return v ? { env, shared: true, at, by: by ? nameFromEmail(by) : null, ending: String(v).slice(-4) } : { env, shared: false };
+};
 const APP_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/;
 
 async function itemsFor(token, allowed) {
@@ -50,7 +55,7 @@ export default handler(['GET', 'POST'], async (req, res) => {
   if (req.method === 'GET') {
     if (link.kind === 'client') return send(res, 200, { mode: 'edit', team: link.label, environment: link.environment, production: await withSummary(production(link), link.token), appToken: appToken(link), items: await itemsFor(link.token, bp.items) });
     const { rows } = await query(
-      `SELECT token, label, environment, environment_changed_at, production_requested_at, production_request_note, sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by FROM links WHERE slug = $1 AND kind = 'client' AND revoked_at IS NULL ORDER BY created_at`,
+      `SELECT token, label, environment, environment_changed_at, production_requested_at, production_request_note, sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by, production_app_token, production_app_token_at, production_app_token_by FROM links WHERE slug = $1 AND kind = 'client' AND revoked_at IS NULL ORDER BY created_at`,
       [link.slug],
     );
     const teams = [];
@@ -64,9 +69,12 @@ export default handler(['GET', 'POST'], async (req, res) => {
     if (sharer.kind !== 'client') throw httpError(403, sharer.kind === 'lean' ? 'Lean team members can’t share the app token for the client.' : 'Only the client team can share the app token. Check the email you entered (Not you?).');
     const value = typeof input.appToken === 'string' ? input.appToken.trim() : '';
     if (!APP_TOKEN_RE.test(value)) throw httpError(400, 'That doesn’t look like an app token. Copy the application ID from the dev portal: letters, digits and dashes, with no spaces.');
+    // Clients share only the Sandbox token: the production one is added by Lean in the admin page.
+    if (link.environment === 'production') throw httpError(403, 'Lean adds the production app token for you.');
+    const env = 'sandbox';
     const { rows } = await query(
-      `UPDATE links SET sandbox_app_token = $2, sandbox_app_token_at = now(), sandbox_app_token_by = $3 WHERE token = $1
-       RETURNING sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by`, [link.token, value, sharer.email]);
+      `UPDATE links SET ${env}_app_token = $2, ${env}_app_token_at = now(), ${env}_app_token_by = $3 WHERE token = $1
+       RETURNING environment, sandbox_app_token, sandbox_app_token_at, sandbox_app_token_by, production_app_token, production_app_token_at, production_app_token_by`, [link.token, value, sharer.email]);
     return send(res, 200, { appToken: appToken(rows[0]) });
   }
   if (typeof input.item !== 'string' || !ITEM_RE.test(input.item) || !bp.items.includes(input.item)) {

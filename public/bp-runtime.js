@@ -787,21 +787,30 @@
   // ---------- Share your Sandbox app token (after the Developer portal setup steps) ----------
   function paintAppToken() {
     const panel = document.getElementById('panel-dev'); if (!panel) return;
-    const list = panel.querySelector('.sp-body ol.sp-check'); if (!list) return;
+    // Sandbox only: in production, Lean adds the production app token, so the client isn't asked for anything.
+    const prod = (appTok && appTok.env ? appTok.env : environment) === 'production';
+    if (prod) { const old = panel.querySelector('.bp-apptoken'); if (old) old.remove(); return; }
+    const lists = [...panel.querySelectorAll('.sp-body ol.sp-check')];
+    const prodList = lists.find((l) => l.querySelector('[data-check*="-prod-"]'));
+    const list = prod && prodList ? prodList : lists.find((l) => l !== prodList) || lists[0]; if (!list) return;
+    const what = prod ? 'production app token' : 'Sandbox app token';
     let box = panel.querySelector('.bp-apptoken');
-    if (!box) { box = document.createElement('section'); box.className = 'bp-apptoken'; box.setAttribute('aria-label', 'Share your Sandbox app token with Lean'); list.after(box); }
+    if (!box) { box = document.createElement('section'); box.className = 'bp-apptoken'; }
+    if (box.previousElementSibling !== list) list.after(box);
+    box.setAttribute('aria-label', `Share your ${what} with Lean`);
     if (box.querySelector('input') && document.activeElement === box.querySelector('input')) return; // don't redraw while typing
     const canShare = !local && !view && cfg.kind === 'client' && clientViewer();
     const shared = appTok && appTok.shared;
     let body;
     if (local) body = '<p class="at-p">The client team shares it from their blueprint link.</p>';
     else if (shared && !appTokEditing) body = `<p class="at-ok">✓ Shared${appTok.at ? ' on ' + escH(fmtDate(appTok.at)) : ''}${appTok.by ? ' by ' + escH(appTok.by) : ''} · ends in <code>…${escH(appTok.ending || '')}</code></p>` + (canShare ? '<div class="at-act"><button type="button" class="at-btn ghost" data-at="change">Change</button></div>' : '');
-    else if (canShare) body = '<p class="at-p">When you’ve finished the Sandbox steps above, paste your Sandbox app token here: the application ID from step 3. Lean uses it to set up and support your integration.</p>' +
-      '<form class="at-form" novalidate><label for="at-in">Sandbox app token</label><div class="at-row"><input id="at-in" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="200"><button type="submit" class="at-btn">Share with Lean</button></div>' +
+    else if (canShare) body = (prod ? '<p class="at-p">Now that Lean has upgraded you, paste your production app token here: the new production application ID from the steps above.</p>'
+        : '<p class="at-p">When you’ve finished the Sandbox steps above, paste your Sandbox app token here: the application ID from step 3. Lean uses it to set up and support your integration.</p>') +
+      '<form class="at-form" novalidate><label for="at-in">' + (prod ? 'Production app token' : 'Sandbox app token') + '</label><div class="at-row"><input id="at-in" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="200"><button type="submit" class="at-btn">Share with Lean</button></div>' +
       '<p class="at-warn">Only the app token. Never paste your client secret or webhook signing secret here.</p><p class="at-err" role="alert"></p>' +
       (shared ? '<div class="at-act"><button type="button" class="at-btn ghost" data-at="cancel">Cancel</button></div>' : '') + '</form>';
     else body = '<p class="at-p">Not shared yet. The client team shares it from their blueprint link.</p>';
-    box.innerHTML = '<div class="at-h">Share your Sandbox app token with Lean</div>' + body + '<p class="at-live" role="status" aria-live="polite"></p>';
+    box.innerHTML = `<div class="at-h">Share your ${what} with Lean</div>` + body + '<p class="at-live" role="status" aria-live="polite"></p>';
     const change = box.querySelector('[data-at="change"]'); if (change) change.onclick = () => { appTokEditing = true; paintAppToken(); const i = box.querySelector('input'); if (i) i.focus(); };
     const cancel = box.querySelector('[data-at="cancel"]'); if (cancel) cancel.onclick = () => { appTokEditing = false; paintAppToken(); };
     const form = box.querySelector('form');

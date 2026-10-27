@@ -166,6 +166,7 @@ details.menuwrap .menu .danger{color:#b3261e}
 .kv-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;flex-wrap:wrap}
 .kv-row .k{width:110px;flex-shrink:0;color:var(--muted);font-weight:600;font-size:12.5px}
 .kv-row form{display:flex;gap:6px;flex:1;min-width:200px;margin:0;max-width:420px}
+.kv-row form[hidden],.kv-row [hidden]{display:none}
 .kv-row input{flex:1;min-width:0;font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
 .kv-row .apptok{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:0;padding:0;margin:0;background:none;max-width:none}
 .kv-row code{font-size:12.5px;overflow-wrap:anywhere}
@@ -774,7 +775,9 @@ function renderDetail(bp) {
         ${activeClient.production_request ? requestDetails(activeClient.production_request) : ''}
         ${activeClient.environment === 'production' && activeClient.environment_changed_at ? `<p class="by">In production since ${esc(when(activeClient.environment_changed_at))}.</p>` : ''}
         <div class="kv">
-          <div class="kv-row"><span class="k">App token</span>${activeClient.sandbox_app_token ? `<span class="apptok"><code>${esc(activeClient.sandbox_app_token)}</code><button type="button" class="ghost mini" data-copy="${esc(activeClient.sandbox_app_token)}" aria-label="Copy the Sandbox app token">Copy</button><span class="by">${esc(when(activeClient.sandbox_app_token_at))}${activeClient.sandbox_app_token_by ? `, ${esc(activeClient.sandbox_app_token_by)}` : ''}</span></span>` : '<span class="never">Not shared yet</span>'}</div>
+          ${(() => { const env = activeClient.environment === 'production' ? 'production' : 'sandbox'; const v = activeClient[env + '_app_token'], at = activeClient[env + '_app_token_at'], by = activeClient[env + '_app_token_by']; const lbl = env === 'production' ? 'Production app token' : 'Sandbox app token';
+            if (env === 'production') return `<div class="kv-row"><span class="k">${lbl}</span>${v ? `<span class="apptok" id="prodTokView"><code>${esc(v)}</code><button type="button" class="ghost mini" data-copy="${esc(v)}" aria-label="Copy the ${lbl}">Copy</button><button type="button" class="ghost mini" id="prodTokEdit">Edit</button><span class="by">${esc(when(at))}${by ? `, ${esc(by)}` : ''}</span></span>` : ''}<form class="domsel" id="prodTokForm" data-token="${esc(activeClient.token)}"${v ? ' hidden' : ''}><input value="${esc(v || '')}" placeholder="Paste the production app token" autocomplete="off" spellcheck="false" aria-label="${lbl}"><button class="ghost mini" type="submit">Save</button></form></div>`;
+            return `<div class="kv-row"><span class="k">${lbl}</span>${v ? `<span class="apptok"><code>${esc(v)}</code><button type="button" class="ghost mini" data-copy="${esc(v)}" aria-label="Copy the ${lbl}">Copy</button><span class="by">${esc(when(at))}${by ? `, ${esc(by)}` : ''}</span></span>` : '<span class="never">Not shared yet</span>'}</div>`; })()}
           <div class="kv-row"><span class="k">Email domains</span><form class="domsel" data-domform="${esc(activeClient.token)}"><input id="dom-${esc(activeClient.token)}" value="${esc((activeClient.client_domains || []).join(', '))}" placeholder="wise.com" autocomplete="off" spellcheck="false" aria-label="Client email domains"><button class="ghost mini" type="submit">Save</button></form></div>
           ${(activeClient.client_domains || []).length ? '' : `<div class="prodreq" role="note">Add the client’s email domains, or they can’t tick steps.</div>`}
         </div>
@@ -1005,6 +1008,14 @@ function renderDetail(bp) {
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(b.dataset.copy); const t = b.textContent; b.textContent = 'Copied'; setTimeout(() => { b.textContent = t; }, 1400); } catch { status('Copy failed: select the text instead'); }
   }));
+  // The production app token, added by Lean
+  if ($('prodTokEdit')) $('prodTokEdit').addEventListener('click', () => { $('prodTokView').hidden = true; $('prodTokForm').hidden = false; $('prodTokForm').querySelector('input').focus(); });
+  if ($('prodTokForm')) $('prodTokForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = $('prodTokForm'), btn = f.querySelector('button'); btn.disabled = true;
+    try { await api('/api/admin/links', { method: 'PATCH', body: JSON.stringify({ token: f.dataset.token, productionAppToken: f.querySelector('input').value, by: byName() || undefined }) }); await load(); status('Production app token saved'); }
+    catch (err) { status(err.message); btn.disabled = false; f.querySelector('input').focus(); }
+  });
   document.querySelectorAll('[data-domform]').forEach((form) => form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = form.querySelector('input'), btn = form.querySelector('button');

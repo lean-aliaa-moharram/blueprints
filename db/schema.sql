@@ -207,3 +207,9 @@ CREATE TABLE IF NOT EXISTS engagement (
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (session_id, key)
 );
+
+-- The client team's production app token, shared once Lean switches them to Production. The Sandbox token is kept
+-- but not shown while the team is in production.
+ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token TEXT;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token_at TIMESTAMPTZ;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token_by TEXT;
