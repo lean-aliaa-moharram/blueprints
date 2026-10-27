@@ -801,6 +801,9 @@ try {
   await admin('/api/admin/links', { method: 'PATCH', body: JSON.stringify({ token: client.token, environment: 'sandbox' }) });
   envAt = (await (await fetch(`${BASE}/api/checklist?token=${client.token}`, { headers: { cookie: clientCookie } })).json()).appToken;
   assert.ok(envAt.env === 'sandbox' && envAt.ending === '9b0c'); ok('switching back to Sandbox shows the Sandbox token again');
+  ov = await (await admin('/api/admin/overview')).json();
+  const actRow = ov.links.find((l) => l.token === client.token);
+  assert.ok(actRow.last_active && new Date(actRow.last_active) >= new Date(actRow.last_view) && new Date(actRow.last_active) >= new Date(actRow.sandbox_app_token_at)); ok('“last active” counts open tabs, ticks and the app token, not only page loads');
   // ---------- Engagement: what the client team looks at and clicks ----------
   const engVisit = (await openAs(client.token, clientCookie)).visit;
   const beat = (visit, engage) => json('/api/track', { token: client.token, visit, event: 'beat', seconds: 30, engage });
