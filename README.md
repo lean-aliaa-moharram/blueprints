@@ -315,3 +315,24 @@ Each blueprint's page in `/admin` has an **Engagement** section, covering client
 **What people click:** opening each guide, Lean doc and API reference links, the Figma file, full-screen diagrams, downloading the CMI requirements, ticking steps, opening the production request form and sharing the Sandbox app token.
 
 **How it's sent:** with the existing time reports (every 30 seconds and on leaving), so there are no extra requests. It's stored per visit in `engagement`, and deleting a visit deletes its engagement.
+
+
+## Products, SDK or API, and uploaded checklists
+
+**The Products page** (admin sidebar) lists every product by family, Payments, Data and Other products, with SDK and API side by side.
+- **Edit** a product's name, short description, card text or effort, and **Add a product** to any family. Payments and Data products are SDK or API; Other products work with both.
+- **Upload checklist** turns a Word (.docx), PDF, Markdown or text file into the product's guide. Headings become groups, and numbered, bulleted or checkbox lines become steps. No AI is involved, and nothing is saved until you've reviewed it, one step per line, with warnings for anything left out. Word keeps its structure best, and there's a template to download (`/checklist-template.docx`).
+- **Built-in guides,** like One-Time Payments, can be replaced by an upload, after a confirmation. Removing the upload goes back to the built-in guide.
+- **Where it's stored:** `product_catalog`. Built-in products live in `lib/products.js`, and a row overrides or adds to them. Changes reach form-built blueprints when they're next published.
+
+**SDK or API:** each blueprint chooses per family (`launch.methods`), when it's created and in the form's Launch plan.
+- **Switching** moves products to their counterpart: One-Time Payments and SIP, Recurring Payments and AoF, Data (API) and Data (SDK).
+- **It keeps** each product's phase, effort and notes. API-only products (the CMI, Cards) are removed with SDK payments.
+
+**Starting from meeting notes** (Add a blueprint): paste or upload notes or a transcript (.txt, .md, .docx, .pdf, .vtt), and **Read the notes** finds:
+- products, by name and common abbreviation;
+- SDK or API;
+- the vertical;
+- lines that read like pain points, timelines and open questions.
+
+Each finding is shown with its line, for you to keep or untick. Timelines and questions are listed for follow-up only. This doesn't use AI: `lib/notes.js` matches words and phrases.

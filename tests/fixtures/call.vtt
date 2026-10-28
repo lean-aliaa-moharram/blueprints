@@ -1,0 +1,29 @@
+WEBVTT
+
+1
+00:00:01.000 --> 00:00:05.000
+Sara (Acme Remit): Thanks for joining. We're an exchange house with about 40 corridors.
+
+2
+00:00:06.000 --> 00:00:12.000
+Sara (Acme Remit): Our biggest pain is card fees on top-ups, and manual reconciliation every morning.
+
+3
+00:00:13.000 --> 00:00:20.000
+Omar: For this we'd suggest the Link SDK, so you get Lean's screens out of the box.
+
+4
+00:00:21.000 --> 00:00:30.000
+Sara (Acme Remit): We want SIP for one-off top-ups first, and Account on File for repeat customers.
+
+5
+00:00:31.000 --> 00:00:38.000
+Sara (Acme Remit): Payouts to UAE accounts would come later. Can we verify the account before paying out?
+
+6
+00:00:39.000 --> 00:00:45.000
+Omar: Yes, account verification is available. Old records are discarded after a year.
+
+7
+00:00:46.000 --> 00:00:52.000
+Sara (Acme Remit): We're aiming to go live in Q1, ideally by end of February. Pricing TBC.

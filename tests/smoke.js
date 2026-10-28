@@ -822,6 +822,51 @@ try {
   assert.equal(tk['sec:launch-plan'].seconds, 35); ok('a visit can only be written to through its own link');
   assert.ok(eng.visits >= 1 && eng.time[0].seconds >= eng.time[eng.time.length - 1].seconds); ok('the admin page gets engagement, busiest first');
   assert.equal((await fetch(`${BASE}/api/admin/engagement?slug=${SLUG}`)).status, 401); ok('only Lean can see engagement');
+  // ---------- Products, uploaded checklists, notes and SDK / API ----------
+  const { readFile: rf } = await import('node:fs/promises');
+  const P = async (body) => admin('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
+  let cat = await (await admin('/api/admin/products')).json();
+  const byIdP = (id) => cat.products.find((x) => x.id === id);
+  assert.ok(byIdP('sip').method === 'sdk' && byIdP('aof').family === 'payments' && byIdP('otp').method === 'api' && byIdP('cards').method === 'api' && byIdP('payouts').method === 'both' && byIdP('data-sdk').family === 'data'); ok('the catalogue groups products by family, SDK or API');
+  let pr = await (await P({ action: 'parse', filename: 'sip-checklist.docx', data: (await rf(new URL('./fixtures/sip-checklist.docx', import.meta.url))).toString('base64') })).json();
+  assert.ok(pr.title === 'SIP implementation checklist' && pr.groups.map((g) => g.title).join('|') === 'Before you start|Build|Test' && pr.steps === 7); ok('a Word checklist is read into its title, groups and steps');
+  pr = await (await P({ action: 'parse', filename: 'x.md', data: Buffer.from('# T\n## Setup\n1. First `code`\n2. Second\n   - sub\n').toString('base64') })).json();
+  assert.ok(pr.groups[0].steps[0] === 'First <code>code</code>' && pr.groups[0].steps[1] === 'Second; sub'); ok('Markdown checklists keep code and sub-points');
+  assert.equal((await P({ action: 'parse', filename: 'x.xls', data: Buffer.from('a').toString('base64') })).status, 415); ok('unsupported files are refused with a clear message');
+  assert.equal((await P({ action: 'parse', filename: 'x.md', data: '' })).status, 400); ok('an empty file is refused');
+  assert.equal((await P({ action: 'guide', id: 'sip', guide: { title: 'SIP guide', groups: [{ title: 'Build', steps: ['Open the SDK <script>x</script>', 'Second <code>ok</code>'] }] }, filename: 'sip.docx' })).status, 200);
+  cat = await (await admin('/api/admin/products')).json();
+  assert.ok(byIdP('sip').guide && byIdP('sip').guide.steps === 2 && byIdP('sip').guide.uploaded.filename === 'sip.docx'); ok('a reviewed checklist becomes the product’s guide');
+  assert.equal((await P({ action: 'save', id: 'data', name: 'Data via API', sub: 'server to server' })).status, 200);
+  cat = await (await admin('/api/admin/products')).json(); assert.equal(byIdP('data').name, 'Data via API'); ok('product names can be edited on the Products page');
+  let ad = await (await P({ action: 'add', name: 'Smart Collect', family: 'payments', method: 'sdk' })).json();
+  cat = await (await admin('/api/admin/products')).json(); assert.ok(byIdP(ad.id) && byIdP(ad.id).custom && byIdP(ad.id).method === 'sdk'); ok('products can be added to a family');
+  assert.equal((await P({ action: 'add', name: 'X', family: 'payments' })).status, 400); ok('a new payments or data product needs SDK or API');
+  assert.equal((await P({ action: 'remove', id: 'otp' })).status, 400); ok('built-in products can’t be removed');
+  // Notes
+  const scan = await (await admin('/api/admin/notes', { method: 'POST', body: JSON.stringify({ filename: 'call.vtt', data: (await rf(new URL('./fixtures/call.vtt', import.meta.url))).toString('base64') }) })).json();
+  assert.ok(['sip', 'aof', 'payouts', 'recon', 'avs'].every((id) => scan.products.some((f) => f.id === id)) && !scan.products.some((f) => f.id === 'cards')); ok('notes: products are found, without false matches like “card fees”');
+  assert.ok(scan.methods.payments.value === 'sdk' && scan.methods.data.value === null && scan.vertical.id === 'remittance'); ok('notes: the integration and vertical are found, and data isn’t guessed');
+  assert.ok(scan.products[0].evidence[0] && !/^\d|-->|Sara \(/.test(scan.products[0].evidence[0]) && scan.pains.length === 1 && scan.timeline.length === 1); ok('notes: each finding comes with its line, transcript clutter removed');
+  assert.equal((await admin('/api/admin/notes', { method: 'POST', body: JSON.stringify({ text: '   ' }) })).status, 400); ok('empty notes are refused');
+  // Creating with SDK payments and the notes' picks
+  const SDKB = 'sdk-' + Date.now().toString(36);
+  let crt = await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: SDKB, by: 'Aliaa', clientName: 'Acme Remit', template: 'standard', vertical: 'remittance', methods: { payments: 'sdk', data: 'api' }, picks: { products: ['sip', 'aof', 'payouts', 'recon', 'avs'], pains: ['Card fees on top-ups'] } }) });
+  assert.ok([200, 201].includes(crt.status));
+  let sdkRow = await (await admin(`/api/admin/builder?slug=${SDKB}`)).json(); const drQ = sdkRow.draft;
+  const inPlan = drQ.launch.phases.flatMap((ph) => ph.rows.map((x) => x.product));
+  assert.ok(drQ.launch.methods.payments === 'sdk' && inPlan.includes('sip') && inPlan.includes('aof') && inPlan.includes('recon') && !inPlan.includes('otp') && !inPlan.includes('cmi')); ok('SDK payments: the plan has SIP and AoF, without the API products or the CMI');
+  assert.ok(drQ.journeys.items.every((j) => !(j.products || []).some((id) => ['otp', 'rec', 'cmi'].includes(id))) && /Powered by \*\*Single Instant Payments/.test(drQ.journeys.items[0].powers)); ok('journeys switch to the SDK products, with honest wording');
+  assert.equal(drQ.pain.rows[0].pain, 'Card fees on top-ups'); ok('pain points kept from the notes come first');
+  const pv2 = await (await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'preview', content: drQ }) })).json();
+  assert.ok(pv2.html.includes('id="panel-u-sip"') && pv2.html.includes('data-check="u-sip-1"') && pv2.html.includes('data-check="u-sip-2"')); ok('an uploaded guide appears on the blueprint, with its own step keys');
+  assert.ok(!/<script>x<\/script>/.test(pv2.html)); ok('markup in uploaded steps is cleaned');
+  assert.equal((await P({ action: 'removeGuide', id: 'sip' })).status, 200);
+  cat = await (await admin('/api/admin/products')).json(); assert.equal(byIdP('sip').guide, null); ok('an uploaded guide can be removed');
+  // A custom product in use can't be removed
+  const CUS = 'cus-' + Date.now().toString(36);
+  await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: CUS, by: 'Aliaa', clientName: 'Cus Co', template: 'standard', methods: { payments: 'sdk' }, picks: { products: [ad.id] } }) });
+  assert.equal((await P({ action: 'remove', id: ad.id })).status, 409); ok('a product in use can’t be removed');
   console.log(`\n${passed} checks passed.`);
 } catch (err) {
   console.error('\nFAILED after ' + passed + ' checks:', err.message);

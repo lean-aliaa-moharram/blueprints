@@ -205,5 +205,17 @@ BEGIN
   ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token TEXT;
   ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token_at TIMESTAMPTZ;
   ALTER TABLE links ADD COLUMN IF NOT EXISTS production_app_token_by TEXT;
+
+  -- The product catalogue's edits: names and descriptions changed on the Products page, products added there, and
+  -- checklists uploaded as guides. Built-in products live in lib/products.js; a row here overrides or adds to them.
+  CREATE TABLE IF NOT EXISTS product_catalog (
+    id TEXT PRIMARY KEY,
+    custom BOOLEAN NOT NULL DEFAULT false,
+    name TEXT, sub TEXT, card TEXT, api_note TEXT, effort TEXT,
+    family TEXT, method TEXT,
+    hidden BOOLEAN NOT NULL DEFAULT false,
+    guide JSONB, guide_source JSONB, guide_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_by TEXT
+  );
 END
 $$;

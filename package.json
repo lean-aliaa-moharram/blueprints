@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",
+    "mammoth": "^1.8.0",
     "node-html-parser": "^6.1.13",
+    "pdf-parse": "^1.1.1",
     "pg": "8.13.1"
   }
 }
