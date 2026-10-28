@@ -58,7 +58,14 @@ const json = (path, body) => fetch(BASE + path, { method: 'POST', headers: { 'Co
   body: JSON.stringify((path === '/api/checklist' || path === '/api/track') && body && body.viewer === undefined ? { ...body, viewer: { email: CLIENT_EMAIL } } : body) });
 // Like a browser: enter an email (returns the signed cookie), then open the page with it.
 const identify = async (token, email) => { const r = await fetch(BASE + '/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, event: 'identify', email }) }); return { status: r.status, setCookie: r.headers.get('set-cookie') || '', cookie: (r.headers.get('set-cookie') || '').split(';')[0] }; };
-const openAs = async (token, cookie, method = 'GET', extra = '') => { const r = await fetch(`${BASE}/b/${token}${extra}`, { method, headers: cookie ? { cookie } : {} }); const t = method === 'GET' ? await r.text() : ''; const m = t.match(/"visit":"([0-9a-f-]{36})"/); return { status: r.status, html: t, visit: m ? m[1] : null }; };
+// Loads a blueprint page and, like a browser showing it, reports it as on screen ("open"); background: true only loads it.
+const openAs = async (token, cookie, method = 'GET', extra = '', { background = false } = {}) => {
+  const r = await fetch(`${BASE}/b/${token}${extra}`, { method, headers: cookie ? { cookie } : {} }); const t = method === 'GET' ? await r.text() : '';
+  const m = t.match(/"visit":"([0-9a-f-]{36})"/), sg = t.match(/"visitSig":"([A-Za-z0-9_-]+)"/);
+  let counted = null;
+  if (m && sg && !background) counted = (await (await fetch(`${BASE}/api/track`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify({ token, visit: m[1], visitSig: sg[1], event: 'open' }) })).json()).counted;
+  return { status: r.status, html: t, visit: m ? m[1] : null, visitSig: sg ? sg[1] : null, counted };
+};
 let passed = 0;
 const ok = (name) => { passed++; console.log('  ok  ' + name); };
 
@@ -822,6 +829,29 @@ try {
   assert.equal(tk['sec:launch-plan'].seconds, 35); ok('a visit can only be written to through its own link');
   assert.ok(eng.visits >= 1 && eng.time[0].seconds >= eng.time[eng.time.length - 1].seconds); ok('the admin page gets engagement, busiest first');
   assert.equal((await fetch(`${BASE}/api/admin/engagement?slug=${SLUG}`)).status, 401); ok('only Lean can see engagement');
+  // ---------- A visit is counted when the page is first on screen, not when it loads ----------
+  const visitsNow = async () => (await (await admin('/api/admin/overview')).json()).links.find((l) => l.token === client.token).views;
+  const before0 = await visitsNow();
+  const bg = await openAs(client.token, clientCookie, 'GET', '', { background: true });
+  assert.ok(bg.visit && bg.visitSig); assert.equal(await visitsNow(), before0); ok('a page loaded in the background (a refreshed tab) isn’t a visit');
+  const sendOpen = (visit, visitSig, cookie = clientCookie) => fetch(`${BASE}/api/track`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify({ token: client.token, visit, visitSig, event: 'open' }) });
+  let op = await (await sendOpen(bg.visit, bg.visitSig)).json();
+  assert.ok(op.counted === true); assert.equal(await visitsNow(), before0 + 1); ok('it becomes a visit when it’s first on screen');
+  op = await (await sendOpen(bg.visit, bg.visitSig)).json();
+  assert.ok(op.counted === false); assert.equal(await visitsNow(), before0 + 1); ok('a visit is counted once, however often it’s reported');
+  assert.equal((await sendOpen('00000000-0000-4000-8000-000000000000', bg.visitSig)).status, 400); ok('an invented visit id is refused');
+  const other = await openAs(client.token, clientCookie, 'GET', '', { background: true });
+  assert.equal((await sendOpen(other.visit, bg.visitSig)).status, 400); ok('a visit can’t be opened with another visit’s signature');
+  // Back after an hour away: a new visit, with its own signed id
+  const reopen = (visit, visitSig) => fetch(`${BASE}/api/track`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: clientCookie }, body: JSON.stringify({ token: client.token, visit, visitSig, event: 'reopen' }) });
+  const ro = await (await reopen(bg.visit, bg.visitSig)).json();
+  assert.ok(ro.counted === true && ro.visit && ro.visit !== bg.visit && ro.visitSig); assert.equal(await visitsNow(), before0 + 2); ok('coming back after a long time away starts a new visit');
+  assert.equal((await reopen(bg.visit, 'forged')).status, 400); ok('a new visit can’t be started without a valid signature');
+  await fetch(`${BASE}/api/track`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: clientCookie }, body: JSON.stringify({ token: client.token, visit: ro.visit, event: 'beat', seconds: 42 }) });
+  const ovP = await (await admin('/api/admin/overview')).json();
+  const rowP = ovP.links.find((l) => l.token === client.token), me = rowP.people.find((x) => x.email === CLIENT_EMAIL);
+  assert.ok(me && me.seconds >= 42 && me.engaged >= 1 && me.visits >= me.engaged && me.last); ok('each person’s visits, engaged visits, time on page and last active are shown');
+  assert.ok(Number.isInteger(rowP.engaged_views) && rowP.engaged_views <= rowP.views); ok('the team’s engaged visits are counted');
   // ---------- Products, uploaded checklists, notes and SDK / API ----------
   const { readFile: rf } = await import('node:fs/promises');
   const P = async (body) => admin('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });

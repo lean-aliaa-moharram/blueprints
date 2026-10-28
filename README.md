@@ -336,3 +336,18 @@ Each blueprint's page in `/admin` has an **Engagement** section, covering client
 - lines that read like pain points, timelines and open questions.
 
 Each finding is shown with its line, for you to keep or untick. Timelines and questions are listed for follow-up only. This doesn't use AI: `lib/notes.js` matches words and phrases.
+
+
+## When a visit counts
+
+A visit is counted the first time the page is **on screen**, not when it's requested.
+- **Not counted:** tabs reloaded or restored in the background, and pages the browser loads ahead, until someone switches to them.
+- **How it works:** the server gives the page a signed visit id (`visitSig`), and the page reports it (`/api/track`, `event: "open"`) when it's first visible. The visit is recorded then, once, against the viewer's cookie, and the first-view alert goes out at that point too. See `lib/visits.js`.
+- **Time on page and engagement** only start after that.
+
+**Time on page and new visits** follow the usual analytics conventions, such as GA4's:
+- **Time on page** counts while the page is in front **and** the person is active, with any scroll, click, key or movement in the last 10 minutes. A tab left open in front of an empty desk stops counting after 10 minutes.
+- **A new visit** starts when someone comes back after 60 minutes or more away, in another tab or idle. Reference pages like blueprints get parked in tabs, so the cut-off is longer than GA4's default 30 minutes. The page asks the server for a new signed visit id (`event: "reopen"`).
+- **Engaged visits** have at least 10 seconds of active time, or a click or tick.
+
+The Overview tab shows these per person: visits (and engaged visits), time on page and last active.

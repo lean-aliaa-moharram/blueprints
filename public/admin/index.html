@@ -162,6 +162,11 @@ details.menuwrap .menu .danger{color:#b3261e}
 .card .people .pl{display:block;color:var(--muted);font-size:12px;margin-bottom:2px}
 .card .people .pk{font-weight:700;color:var(--muted);margin-right:4px}
 .card .people .pv{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--line);font-size:11px;text-align:center;color:var(--ink)}
+.ptable-wrap{margin:6px 0 10px;overflow-x:auto}
+.ptable{width:100%;border-collapse:collapse;font-size:13px}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.ptable td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.ptable .by{font-size:12px}
 .kv{display:flex;flex-direction:column;gap:2px;margin:6px 0 0}
 .kv-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;flex-wrap:wrap}
 .kv-row .k{width:110px;flex-shrink:0;color:var(--muted);font-weight:600;font-size:12.5px}
@@ -998,12 +1003,18 @@ function renderDetail(bp) {
           <label class="envsel">Environment <select data-env="${esc(activeClient.token)}" aria-label="Environment for ${esc(activeClient.label)}"><option value="sandbox"${activeClient.environment !== 'production' ? ' selected' : ''}>Sandbox</option><option value="production"${activeClient.environment === 'production' ? ' selected' : ''}>Production</option></select></label>
         </div>
         <div class="stats">
-          <div><b>${activeClient.views}</b><span>visits</span></div>
+          <div title="Engaged: at least 10 seconds of active time, or a click or tick"><b>${activeClient.views}</b><span>visits${activeClient.views ? `, ${activeClient.engaged_views || 0} engaged` : ''}</span></div>
           <div><b>${activeClient.views ? esc(dur(activeClient.seconds)) : '0 sec'}</b><span>time on page</span></div>
           <div title="${activeClient.last_view ? 'Last page load: ' + esc(full(activeClient.last_view)) : ''}"><b>${activeClient.last_active || activeClient.last_view ? esc(when(activeClient.last_active || activeClient.last_view)) : 'Never'}</b><span>last active</span></div>
           <div><b>${bp.items ? `${activeClient.done} of ${bp.items}` : '0'}</b><span>steps done</span></div>
         </div>
-        ${(activeClient.people || []).length ? `<div class="people"><span class="pl">Viewed by</span>${people(activeClient)}</div>` : ''}
+        ${(activeClient.people || []).length ? `<div class="ptable-wrap"><table class="ptable"><thead><tr><th>Person</th><th>Visits</th><th>Time on page</th><th>Last active</th></tr></thead><tbody>
+          ${[...activeClient.people].sort((x, y) => ((x.kind || 'client') === 'lean') - ((y.kind || 'client') === 'lean') || y.seconds - x.seconds).map((x) => `<tr>
+            <td><b title="${esc(x.email)}">${esc(x.name || x.email)}</b> ${(x.kind || 'client') === 'lean' ? '<span class="tag">Lean</span>' : (x.kind === 'other' ? '<span class="tag">Other</span>' : '')}<div class="by">${esc(x.email)}</div></td>
+            <td class="num">${x.visits}${x.visits ? ` <span class="by">(${x.engaged || 0} engaged)</span>` : ''}</td>
+            <td class="num">${esc(dur(x.seconds || 0))}</td>
+            <td title="${esc(full(x.last))}">${esc(when(x.last))}</td></tr>`).join('')}</tbody></table>
+          <p class="hint">Time counts while the page is in front and the person is active. Engaged: at least 10 seconds, or a click or tick. Lean visits don’t count toward the client’s numbers.</p></div>` : ''}
         ${prodReqOpen ? `<div class="prodreq" role="note"><b>Production requested</b> ${esc(when(activeClient.production_requested_at))}. Review it, then set Environment to Production.</div>` : ''}
         ${activeClient.production_request ? requestDetails(activeClient.production_request) : ''}
         ${activeClient.environment === 'production' && activeClient.environment_changed_at ? `<p class="by">In production since ${esc(when(activeClient.environment_changed_at))}.</p>` : ''}

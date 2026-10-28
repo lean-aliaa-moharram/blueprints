@@ -91,18 +91,54 @@
   }
 
   // ---------- Visible time (never in a Lean view or local mode) ----------
-  // The visit itself is recorded by the server when the page loads (cfg.visit). This adds the time the page
-  // was actually in front of the viewer: every 30 seconds, and when they switch away or close it.
+  // The visit is counted the first time the page is on screen ("open"), not when it loads: a tab reloaded or
+  // restored in the background, or a page the browser loads ahead, isn't a visit until someone looks at it.
+  // After that, the time the page is in front: every 30 seconds, and when they switch away or close it.
   if (!view && !local && cfg.visit) {
     const BEAT_EVERY = 30;
+    // Time counts while the page is in front and the person is active: any scroll, click, key or movement in the
+    // last 10 minutes. Back after an hour or more away (in another tab, or idle) starts a new visit.
+    const IDLE_MS = 10 * 60 * 1000, NEW_VISIT_MS = 60 * 60 * 1000;
     let visibleMs = 0, reported = 0;
     let lastTick = document.visibilityState === 'visible' ? Date.now() : null;
-    const tick = () => { if (lastTick === null) return; const now = Date.now(); visibleMs += now - lastTick; lastTick = now; };
+    let lastActive = Date.now(), lastPresent = Date.now();
+    const present = () => document.visibilityState === 'visible' && Date.now() - lastActive < IDLE_MS;
+    const tick = () => {
+      if (lastTick === null) return;
+      const now = Date.now(), until = Math.min(now, lastActive + IDLE_MS);
+      if (until > lastTick) { visibleMs += until - lastTick; lastPresent = until; }
+      lastTick = now;
+    };
     const post = (body, useBeacon) => {
       const data = JSON.stringify({ token, visit: cfg.visit, ...body });
       if (useBeacon && navigator.sendBeacon) { navigator.sendBeacon('/api/track', new Blob([data], { type: 'text/plain' })); return; }
       fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: data, keepalive: true }).catch(() => {});
     };
+    let opened = false, reopening = false;
+    const openIfSeen = () => {
+      if (opened || document.visibilityState !== 'visible' || document.prerendering) return;
+      opened = true; lastPresent = Date.now(); post({ event: 'open', visitSig: cfg.visitSig });
+    };
+    // Back after a long time away: close off the old visit's time, then start a new one
+    const backAfterAway = async () => {
+      if (!opened || reopening || Date.now() - lastPresent < NEW_VISIT_MS) return;
+      reopening = true;
+      try {
+        report('leave');
+        const r = await fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, visit: cfg.visit, visitSig: cfg.visitSig, event: 'reopen' }) });
+        const j = await r.json();
+        if (r.ok && j.visit) { cfg.visit = j.visit; cfg.visitSig = j.visitSig; visibleMs = 0; reported = 0; lastTick = Date.now(); }
+      } catch {} finally { reopening = false; lastPresent = Date.now(); }
+    };
+    const onActivity = () => {
+      const was = present();
+      lastActive = Date.now();
+      if (document.visibilityState === 'visible') { if (!was) { lastTick = Date.now(); backAfterAway(); } }
+    };
+    ['pointermove', 'pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((t) => window.addEventListener(t, onActivity, { passive: true, capture: true }));
+    openIfSeen();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lastActive = Date.now(); openIfSeen(); backAfterAway(); } });
+    document.addEventListener('prerenderingchange', openIfSeen);
     // ---------- Engagement: which parts of the page are looked at, and what's clicked ----------
     // Each second the page is in front goes to the part in the middle of the screen (or the open guide), so
     // scrolling past something doesn't count. Sent with the time reports above; no extra requests.
@@ -124,7 +160,7 @@
       return out;
     };
     setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
+      if (!present()) return;
       const guide = document.querySelector('aside.spanel.open');
       if (guide) { add(ENG.t, 'guide:' + guide.id.replace(/^panel-/, ''), 'Guide: ' + txt(guide.querySelector('.sp-title')), 1); return; }
       const y = window.innerHeight / 2; let best = null;

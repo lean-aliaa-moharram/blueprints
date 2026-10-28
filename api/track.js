@@ -8,6 +8,8 @@ import { handler, readJson, send, httpError } from '../lib/http.js';
 import { query } from '../lib/db.js';
 import { findActiveLink } from '../lib/blueprints.js';
 import { classify, viewerCookie, clearViewerCookie, isSecure } from '../lib/viewer.js';
+import { checkVisitSig, openVisit, visitSig } from '../lib/visits.js';
+import { randomUUID } from 'node:crypto';
 
 const VISIT_RE = /^[0-9a-f-]{36}$/;
 const KEY_RE = /^[a-z0-9][a-z0-9:._-]{0,79}$/;
@@ -40,6 +42,16 @@ export default handler(['POST'], async (req, res) => {
   }
   if (body.event === 'forget') return send(res, 200, { ok: true }, { 'Set-Cookie': clearViewerCookie(isSecure(req)) });
 
+  if (body.event === 'open') {   // the page is on screen for the first time: now it's a visit
+    if (typeof body.visit !== 'string' || !VISIT_RE.test(body.visit) || !checkVisitSig(body.visit, link.token, body.visitSig)) throw httpError(400, 'Bad visit');
+    return send(res, 200, { ok: true, counted: await openVisit(req, link, body.visit) });
+  }
+  if (body.event === 'reopen') {   // back after an hour or more away: a new visit, with a new signed id
+    if (typeof body.visit !== 'string' || !VISIT_RE.test(body.visit) || !checkVisitSig(body.visit, link.token, body.visitSig)) throw httpError(400, 'Bad visit');
+    const visit = randomUUID();
+    const counted = await openVisit(req, link, visit);
+    return send(res, 200, { ok: true, counted, visit, visitSig: visitSig(visit, link.token) });
+  }
   if (body.event === 'beat' || body.event === 'leave') {
     if (typeof body.visit !== 'string' || !VISIT_RE.test(body.visit)) throw httpError(400, 'Bad visit');
     const seconds = Math.max(0, Math.min(120, Math.round(Number(body.seconds) || 0)));

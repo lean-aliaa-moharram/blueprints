@@ -5,13 +5,11 @@
 // is recorded, so link previews (Slack unfurls, crawlers) never count as visits.
 import { randomUUID } from 'node:crypto';
 import { handler, getQuery, send } from '../lib/http.js';
-import { query } from '../lib/db.js';
 import { findActiveLink, loadBlueprint } from '../lib/blueprints.js';
 import { checkViewParam } from '../lib/viewsig.js';
 import { leanDomains, classify, viewerFromRequest } from '../lib/viewer.js';
-import { notifySlack } from '../lib/notify.js';
+import { visitSig } from '../lib/visits.js';
 
-const NOTIFY_GAP_HOURS = 12;
 const NOT_FOUND = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title>Link not active</title>
@@ -42,31 +40,18 @@ export default handler(['GET', 'HEAD'], async (req, res) => {
   }
 
   // Who's viewing (not asked in Lean's signed view, which is never counted)
-  let viewer = null, visit = null;
+  let viewer = null, visit = null, visitSigned = null;
   const email = viewParam ? null : viewerFromRequest(req);
   if (email) {
     const who = classify(email, link.kind === 'client' ? link.client_domains : []);
     viewer = { email: who.email, name: who.name, kind: link.kind === 'client' ? who.kind : who.kind === 'lean' ? 'lean' : 'other' };
-    if (req.method === 'GET') {
-      visit = randomUUID();
-      const ua = String(req.headers['user-agent'] || '').slice(0, 300);
-      const country = String(req.headers['x-vercel-ip-country'] || '').slice(0, 2) || null;
-      const { rows } = await query(
-        `INSERT INTO views (session_id, token, slug, user_agent, country, seconds_visible, viewer_email, viewer_name, viewer_kind)
-         VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8) RETURNING id`,
-        [visit, link.token, link.slug, ua, country, viewer.email, viewer.name, link.kind === 'client' ? viewer.kind : null]);
-      // The first-view alert: the client team, at most once every 12 hours
-      if (link.kind === 'client' && viewer.kind === 'client') {
-        const recent = await query(`SELECT 1 FROM views WHERE token = $1 AND id <> $2 AND coalesce(viewer_kind, 'client') = 'client' AND opened_at > now() - make_interval(hours => $3) LIMIT 1`,
-          [link.token, rows[0].id, NOTIFY_GAP_HOURS]);
-        if (!recent.rows.length) await notifySlack(`${viewer.name} (${link.label}) opened the ${bp.name || bp.title || link.slug} blueprint.`);
-      }
-    }
+    // Counted when the page is first on screen (see lib/visits.js), not now: a tab reloading in the background isn't a visit.
+    if (req.method === 'GET') { visit = randomUUID(); visitSigned = visitSig(visit, link.token); }
   }
   const needIdentity = !viewParam && !viewer;
 
   const config = JSON.stringify({ token: link.token, slug: bp.slug, kind: link.kind, leanDomains: leanDomains(), clientDomains: link.kind === 'client' ? link.client_domains || [] : [],
-    uploadMode: process.env.UPLOAD_MODE === 'local' ? 'local' : 'blob', view: viewParam, team: viewParam ? link.label : undefined, viewer, visit, needIdentity }).replace(/</g, '\\u003c');
+    uploadMode: process.env.UPLOAD_MODE === 'local' ? 'local' : 'blob', view: viewParam, team: viewParam ? link.label : undefined, viewer, visit, visitSig: visitSigned, needIdentity }).replace(/</g, '\\u003c');
   let html = bp.html.replace(/<\/head>/i, `<meta name="robots" content="noindex, nofollow">\n${needIdentity ? GATE + '\n' : ''}</head>`);
   const runtime = `<script>window.__LEAN_BP=${config};</script>\n<script src="/bp-runtime.js" defer></script>\n`;
   const at = html.toLowerCase().lastIndexOf('</body>');
