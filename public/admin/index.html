@@ -162,6 +162,9 @@ details.menuwrap .menu .danger{color:#b3261e}
 .card .people .pl{display:block;color:var(--muted);font-size:12px;margin-bottom:2px}
 .card .people .pk{font-weight:700;color:var(--muted);margin-right:4px}
 .card .people .pv{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--line);font-size:11px;text-align:center;color:var(--ink)}
+.lfilter{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-size:13px}
+.lfilter label{font-weight:600;color:var(--muted)}
+.lfilter select{height:32px;width:auto;max-width:100%}
 .ptable-wrap{margin:6px 0 10px;overflow-x:auto}
 .ptable{width:100%;border-collapse:collapse;font-size:13px}
 .ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
@@ -450,6 +453,7 @@ const VERT = '__verticals';
 const WHATS = '__whatsnew';
 const PRODS = '__products';
 let bpTab = 'overview'; // the blueprint page's open tab
+const linkPick = {};     // per blueprint: { ov: 'all' | token, eng: '' (client team) | token }
 // "What's new": production requests and review comments since you last looked, on blueprints you own (or that
 // have no owner yet), with a switch to show every blueprint. Seen-ness is remembered in this browser.
 let activity = [], whatsAll = false, seenBefore = null, firstLoad = true;
@@ -1008,13 +1012,7 @@ function renderDetail(bp) {
           <div title="${activeClient.last_view ? 'Last page load: ' + esc(full(activeClient.last_view)) : ''}"><b>${activeClient.last_active || activeClient.last_view ? esc(when(activeClient.last_active || activeClient.last_view)) : 'Never'}</b><span>last active</span></div>
           <div><b>${bp.items ? `${activeClient.done} of ${bp.items}` : '0'}</b><span>steps done</span></div>
         </div>
-        ${(activeClient.people || []).length ? `<div class="ptable-wrap"><table class="ptable"><thead><tr><th>Person</th><th>Visits</th><th>Time on page</th><th>Last active</th></tr></thead><tbody>
-          ${[...activeClient.people].sort((x, y) => ((x.kind || 'client') === 'lean') - ((y.kind || 'client') === 'lean') || y.seconds - x.seconds).map((x) => `<tr>
-            <td><b title="${esc(x.email)}">${esc(x.name || x.email)}</b> ${(x.kind || 'client') === 'lean' ? '<span class="tag">Lean</span>' : (x.kind === 'other' ? '<span class="tag">Other</span>' : '')}<div class="by">${esc(x.email)}</div></td>
-            <td class="num">${x.visits}${x.visits ? ` <span class="by">(${x.engaged || 0} engaged)</span>` : ''}</td>
-            <td class="num">${esc(dur(x.seconds || 0))}</td>
-            <td title="${esc(full(x.last))}">${esc(when(x.last))}</td></tr>`).join('')}</tbody></table>
-          <p class="hint">Time counts while the page is in front and the person is active. Engaged: at least 10 seconds, or a click or tick. Lean visits don’t count toward the client’s numbers.</p></div>` : ''}
+
         ${prodReqOpen ? `<div class="prodreq" role="note"><b>Production requested</b> ${esc(when(activeClient.production_requested_at))}. Review it, then set Environment to Production.</div>` : ''}
         ${activeClient.production_request ? requestDetails(activeClient.production_request) : ''}
         ${activeClient.environment === 'production' && activeClient.environment_changed_at ? `<p class="by">In production since ${esc(when(activeClient.environment_changed_at))}.</p>` : ''}
@@ -1027,13 +1025,29 @@ function renderDetail(bp) {
         </div>
         ${openComments ? `<p class="by"><button type="button" class="linkish" data-gotab="comments">${openComments} open review comment${openComments === 1 ? '' : 's'}</button></p>` : ''}
       </div>` : `<div class="empty">No client team link yet. <button type="button" class="linkish" data-gotab="links">Create one</button></div>`}
+      ${allLinks.length > 1 ? `<div class="lfilter"><label for="ovLink">Link</label><select id="ovLink"><option value="all">All links</option>${allLinks.map((l) => `<option value="${esc(l.token)}"${(linkPick[bp.slug] || {}).ov === l.token ? ' selected' : ''}>${esc(l.label)} (${l.kind === 'client' ? 'client link' : 'Lean link'}${l.revoked_at ? ', revoked' : ''})</option>`).join('')}</select></div>` : ''}
+      ${(() => { const pick = (linkPick[bp.slug] || {}).ov || 'all';
+        const rows = allLinks.filter((l) => pick === 'all' || l.token === pick).flatMap((l) => (l.people || []).map((x) => ({ ...x, link: l.label, linkKind: l.kind })));
+        if (!rows.length) return '';
+        const isLean = (x) => (data.leanDomains || ['leantech.me']).some((d) => String(x.email || '').toLowerCase().endsWith('@' + d) || String(x.email || '').toLowerCase().endsWith('.' + d));
+        rows.forEach((x) => { x.kind = isLean(x) ? 'lean' : x.kind === 'other' ? 'other' : x.linkKind === 'client' ? (x.kind || 'client') : 'other'; });
+        rows.sort((x, y) => (x.linkKind !== 'client') - (y.linkKind !== 'client') || (x.kind === 'lean') - (y.kind === 'lean') || y.seconds - x.seconds);
+        return `<h3 class="subh">People</h3><div class="ptable-wrap"><table class="ptable"><thead><tr><th>Person</th><th>Link</th><th>Visits</th><th>Time on page</th><th>Last active</th></tr></thead><tbody>
+          ${rows.map((x) => `<tr>
+            <td><b title="${esc(x.email)}">${esc(x.name || x.email)}</b> ${(x.kind || 'client') === 'lean' ? '<span class="tag">Lean</span>' : (x.kind === 'other' ? '<span class="tag">Other</span>' : '')}<div class="by">${esc(x.email)}</div></td>
+            <td>${esc(x.link)} <span class="by">${x.linkKind === 'client' ? 'client link' : 'Lean link'}</span></td>
+            <td class="num">${x.visits}${x.visits ? ` <span class="by">(${x.engaged || 0} engaged)</span>` : ''}</td>
+            <td class="num">${esc(dur(x.seconds || 0))}</td>
+            <td title="${esc(full(x.last))}">${esc(when(x.last))}</td></tr>`).join('')}</tbody></table>
+          <p class="hint">Everyone who viewed this blueprint, on any of its links. Time counts while the page is in front and the person is active; engaged means at least 10 seconds, or a click or tick. Only the client team counts toward the numbers above.</p></div>`; })()}
       <h3 class="subh">Recent visits</h3>
-      ${visits.length ? `<div class="list">${visits.slice(0, 8).map((v) => `
+      ${(() => { const pick = (linkPick[bp.slug] || {}).ov || 'all'; const vs = pick === 'all' ? visits : visits.filter((v) => v.token === pick);
+        return vs.length ? `<div class="list">${vs.slice(0, 8).map((v) => `
         <div class="visit">
           <time datetime="${esc(v.opened_at)}" title="${esc(full(v.opened_at))}">${esc(when(v.opened_at))}</time>
           <div><strong>${esc(v.viewer_name || v.label)}</strong>${v.viewer_name ? ` <span class="d" style="display:inline">${esc(v.label)}</span>` : ''} ${v.kind === 'internal' || v.viewer_kind === 'lean' ? '<span class="tag">Lean</span>' : ''}</div>
           <div class="num d">${dur(v.seconds_visible)}</div>
-        </div>`).join('')}</div>` : '<div class="empty">No visits yet.</div>'}
+        </div>`).join('')}</div>` : '<div class="empty">No visits yet on this link.</div>'; })()}
     </section>
 
     <section class="tabpanel" data-panel="links">
@@ -1069,7 +1083,7 @@ function renderDetail(bp) {
 
     ${bp.published ? `
     <section class="tabpanel" data-panel="progress"><div id="progressBody"><div class="empty">Loading…</div></div></section>
-    <section class="tabpanel" data-panel="engagement"><details class="flat" id="engBox"><summary>Engagement</summary><div id="engList"><p class="by">Loading…</p></div></details></section>
+    <section class="tabpanel" data-panel="engagement">${allLinks.length > 1 ? `<div class="lfilter"><label for="engLink">Link</label><select id="engLink"><option value="">${activeClient ? esc(activeClient.label) + ' (client link, client team only)' : 'The client link'}</option>${allLinks.filter((l) => l !== activeClient).map((l) => `<option value="${esc(l.token)}"${(linkPick[bp.slug] || {}).eng === l.token ? ' selected' : ''}>${esc(l.label)} (${l.kind === 'client' ? 'client link' : 'Lean link'}${l.revoked_at ? ', revoked' : ''})</option>`).join('')}</select></div>` : ''}<details class="flat" id="engBox"><summary>Engagement</summary><div id="engList"><p class="by">Loading…</p></div></details></section>
     <section class="tabpanel" data-panel="comments"><details class="flat" id="commentsBox"><summary>Review comments</summary><div id="commentsList"><p class="by">Loading…</p></div></details></section>` : ''}
 
     <section class="tabpanel" data-panel="settings">
@@ -1138,21 +1152,25 @@ function renderDetail(bp) {
   };
   if ($('commentsBox')) { if ($('commentsBox').open) loadComments(); $('commentsBox').addEventListener('toggle', () => { if ($('commentsBox').open) loadComments(); }); }
   // Engagement: where the client team spends time, and what they click (client team visits only)
-  if ($('engBox')) $('engBox').addEventListener('toggle', async () => {
-    if (!$('engBox').open) return;
+  const loadEng = async () => {
+    const tok = (linkPick[bp.slug] || {}).eng || '';
+    $('engList').innerHTML = '<p class="by">Loading…</p>';
     try {
-      const e = await api('/api/admin/engagement?slug=' + encodeURIComponent(bp.slug));
-      if (!e.visits) { $('engList').innerHTML = '<p class="empty">No client team visits yet.</p>'; return; }
+      const e = await api('/api/admin/engagement?slug=' + encodeURIComponent(bp.slug) + (tok ? '&token=' + encodeURIComponent(tok) : ''));
+      if (!e.visits) { $('engList').innerHTML = `<p class="empty">${e.link ? 'No visits on this link yet.' : 'No client team visits yet.'}</p>`; return; }
       const maxT = Math.max(1, ...e.time.map((r) => r.seconds)), maxA = Math.max(1, ...e.actions.map((r) => r.count));
       const pct = (n) => Math.round((n / e.visits) * 100) + '%';
       const bar = (v, max) => `<span class="engbar"><i style="width:${Math.max(2, Math.round((v / max) * 100))}%"></i></span>`;
-      $('engList').innerHTML = `<p class="hint">${e.visits} client team visit${e.visits === 1 ? '' : 's'}. Lean visits aren’t counted.</p>
+      $('engList').innerHTML = `<p class="hint">${e.visits} visit${e.visits === 1 ? '' : 's'}${e.link ? ` on ${esc(e.link.label)}${e.link.kind === 'client' ? ', client team only' : ''}` : ' by the client team; Lean visits aren’t counted'}.</p>
         <h4 class="engh">Where people spend time</h4>
         ${e.time.length ? `<table class="engt"><thead><tr><th>Part of the page</th><th></th><th>Total time</th><th>Visits that reached it</th><th>Average per visit</th></tr></thead><tbody>${e.time.map((r) => `<tr><td>${esc(r.label || r.key)}</td><td>${bar(r.seconds, maxT)}</td><td>${esc(dur(r.seconds))}</td><td>${r.visits} (${pct(r.visits)})</td><td>${r.visits ? esc(dur(Math.round(r.seconds / r.visits))) : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="by">No time recorded yet.</p>'}
         <h4 class="engh">What people click</h4>
         ${e.actions.length ? `<table class="engt"><thead><tr><th>Action</th><th></th><th>Times</th><th>Visits</th></tr></thead><tbody>${e.actions.map((r) => `<tr><td>${esc(r.label || r.key)}</td><td>${bar(r.count, maxA)}</td><td>${r.count}</td><td>${r.visits} (${pct(r.visits)})</td></tr>`).join('')}</tbody></table>` : '<p class="by">No clicks recorded yet.</p>'}`;
     } catch (err) { $('engList').innerHTML = `<p class="by">${esc(err.message)}</p>`; }
-  });
+  };
+  if ($('engBox')) $('engBox').addEventListener('toggle', () => { if ($('engBox').open) loadEng(); });
+  if ($('engLink')) $('engLink').addEventListener('change', () => { linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), eng: $('engLink').value }; loadEng(); });
+  if ($('ovLink')) $('ovLink').addEventListener('change', () => { linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), ov: $('ovLink').value }; render(); });
   // Version history
   if ($('versionsBox')) $('versionsBox').addEventListener('toggle', async () => {
     if (!$('versionsBox').open) return;

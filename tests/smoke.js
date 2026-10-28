@@ -852,6 +852,15 @@ try {
   const rowP = ovP.links.find((l) => l.token === client.token), me = rowP.people.find((x) => x.email === CLIENT_EMAIL);
   assert.ok(me && me.seconds >= 42 && me.engaged >= 1 && me.visits >= me.engaged && me.last); ok('each person’s visits, engaged visits, time on page and last active are shown');
   assert.ok(Number.isInteger(rowP.engaged_views) && rowP.engaged_views <= rowP.views); ok('the team’s engaged visits are counted');
+  // Engagement split by link
+  const leanVisit = (await openAs(lean.token, willCookie)).visit;
+  await fetch(`${BASE}/api/track`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: willCookie }, body: JSON.stringify({ token: lean.token, visit: leanVisit, event: 'beat', seconds: 30, engage: { t: { 'sec:pain-points': ['Pain points', 25] }, a: {} } }) });
+  const engClient = await (await admin(`/api/admin/engagement?slug=${SLUG}`)).json();
+  const engLean = await (await admin(`/api/admin/engagement?slug=${SLUG}&token=${lean.token}`)).json();
+  assert.ok(!engClient.time.some((r) => r.key === 'sec:pain-points' && r.seconds === 25) && engLean.link.kind === 'internal' && engLean.time.some((r) => r.key === 'sec:pain-points' && r.seconds === 25)); ok('engagement can be shown for each link, and the client link stays client-only');
+  assert.equal((await admin(`/api/admin/engagement?slug=${SLUG}&token=nope`)).status, 404); ok('engagement for a link on another blueprint is refused');
+  const ovL = await (await admin('/api/admin/overview')).json();
+  assert.ok(ovL.recent.every((v) => typeof v.token === 'string')); ok('each visit says which link it came from');
   // ---------- Products, uploaded checklists, notes and SDK / API ----------
   const { readFile: rf } = await import('node:fs/promises');
   const P = async (body) => admin('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });

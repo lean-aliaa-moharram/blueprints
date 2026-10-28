@@ -27,6 +27,9 @@ const VIEW_EXPIRED = NOT_FOUND.replace('<title>Link not active</title>', '<title
 const GATE = `<style id="bp-gate">body>*:not(.bp-who-ov):not(script):not(style){visibility:hidden !important}html,body{overflow:hidden !important;background:#14171a !important}</style>
 <noscript><style>#bp-gate{display:none}</style><p style="font:16px system-ui;padding:2rem">Turn on JavaScript to view this blueprint.</p></noscript>`;
 
+// A new address for the page script on every deployment, so a browser can't keep an old copy
+const RUNTIME_VERSION = encodeURIComponent(String(process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || 'dev').slice(0, 12));
+
 export default handler(['GET', 'HEAD'], async (req, res) => {
   const { token, view } = getQuery(req);
   const link = await findActiveLink(token);
@@ -53,7 +56,7 @@ export default handler(['GET', 'HEAD'], async (req, res) => {
   const config = JSON.stringify({ token: link.token, slug: bp.slug, kind: link.kind, leanDomains: leanDomains(), clientDomains: link.kind === 'client' ? link.client_domains || [] : [],
     uploadMode: process.env.UPLOAD_MODE === 'local' ? 'local' : 'blob', view: viewParam, team: viewParam ? link.label : undefined, viewer, visit, visitSig: visitSigned, needIdentity }).replace(/</g, '\\u003c');
   let html = bp.html.replace(/<\/head>/i, `<meta name="robots" content="noindex, nofollow">\n${needIdentity ? GATE + '\n' : ''}</head>`);
-  const runtime = `<script>window.__LEAN_BP=${config};</script>\n<script src="/bp-runtime.js" defer></script>\n`;
+  const runtime = `<script>window.__LEAN_BP=${config};</script>\n<script src="/bp-runtime.js?v=${RUNTIME_VERSION}" defer></script>\n`;
   const at = html.toLowerCase().lastIndexOf('</body>');
   html = at === -1 ? html + runtime : html.slice(0, at) + runtime + html.slice(at);
   send(res, 200, html);
