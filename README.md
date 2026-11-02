@@ -351,3 +351,15 @@ A visit is counted the first time the page is **on screen**, not when it's reque
 - **Engaged visits** have at least 10 seconds of active time, or a click or tick.
 
 The Overview tab shows these per person: visits (and engaged visits), time on page and last active.
+
+
+## Add a blueprint: vertical, starting point and notes together
+
+**Vertical:** every blueprint can belong to a vertical (`blueprints.vertical`).
+- **When it's set:** chosen on the Add page, suggested by meeting notes, and changeable in Settings, including for uploaded blueprints.
+- **Where it shows:** in the blueprint's header.
+
+**Start from** a base (the template, a copy or blank) and optionally **add meeting notes** on top of it.
+- **Products:** the review lists the template's products alongside those the notes add, each labelled with its quote.
+- **Pain points:** the vertical's are kept, and the notes' are **added after** them. A notes line that's close to one the vertical already has is flagged and unticked.
+- **On a copy,** the notes only add (`picks.addOnly`).

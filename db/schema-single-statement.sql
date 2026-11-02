@@ -217,5 +217,8 @@ BEGIN
     guide JSONB, guide_source JSONB, guide_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_by TEXT
   );
+
+  -- The vertical a blueprint belongs to (a verticals.id), chosen when it's created and changeable in Settings.
+  ALTER TABLE blueprints ADD COLUMN IF NOT EXISTS vertical TEXT;
 END
 $$;

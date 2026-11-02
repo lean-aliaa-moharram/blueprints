@@ -162,6 +162,10 @@ details.menuwrap .menu .danger{color:#b3261e}
 .card .people .pl{display:block;color:var(--muted);font-size:12px;margin-bottom:2px}
 .card .people .pk{font-weight:700;color:var(--muted);margin-right:4px}
 .card .people .pv{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--line);font-size:11px;text-align:center;color:var(--ink)}
+.pfilters{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:4px 0 6px;font-size:13px}
+.pfilters label{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--muted);margin:0}
+.pfilters select,.pfilters input{height:32px;width:auto;font:inherit;font-weight:400;color:var(--ink)}
+.pfilters input{min-width:200px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
 .lfilter{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-size:13px}
 .lfilter label{font-weight:600;color:var(--muted)}
 .lfilter select{height:32px;width:auto;max-width:100%}
@@ -176,6 +180,7 @@ details.menuwrap .menu .danger{color:#b3261e}
 .kv-row form{display:flex;gap:6px;flex:1;min-width:200px;margin:0;max-width:420px}
 .kv-row form[hidden],.kv-row [hidden]{display:none}
 .kv-row input{flex:1;min-width:0;font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
+.kv-row select{height:32px;width:auto;min-width:200px}
 .kv-row .apptok{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:0;padding:0;margin:0;background:none;max-width:none}
 .kv-row code{font-size:12.5px;overflow-wrap:anywhere}
 .subh{font-size:14px;margin:4px 0 8px;color:var(--ink)}
@@ -227,6 +232,20 @@ details.flat>summary{display:none}
 .pfamhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .pfamhead:first-child{margin-top:4px}
 .seg.sm span{padding:3px 11px;font-size:12px}
+.wvert{display:grid;grid-template-columns:minmax(200px,320px) 1fr;gap:4px 14px;align-items:center;margin-top:12px}
+.wvert label{grid-column:1/-1}
+.wvert .hint{margin:0}
+.wvert .hint q{display:block;font-style:italic;color:var(--muted)}
+.notestoggle{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--line);border-radius:12px;padding:12px;margin:12px 0 0;cursor:pointer;font-size:13px;color:var(--muted);font-weight:400}
+.notestoggle b{color:var(--ink);font-size:14px;display:block}
+.notestoggle:has(input:checked){border-style:solid;border-color:var(--bright,#3dd68c)}
+.notestoggle input{margin-top:3px}
+.tag.new{background:var(--mint);color:var(--ink)}
+.vpains{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:0 0 10px}
+.vpains ul{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.vph{font-weight:600;font-size:13px;margin:6px 0 4px}
+.fitem.dim>span{color:var(--muted)}
+.likeof{display:block;font-size:12px;color:var(--muted);font-style:italic;margin-top:2px}
 /* Products page */
 .pfam{margin:0 0 26px}
 .pfam>h3{margin:0 0 8px;font-size:16px}
@@ -447,13 +466,14 @@ let password = sessionStorage.getItem(KEY) || '';
 let data = null;
 let products = [];
 let verticals = [];
+let templateProducts = [];   // the template's products, for the notes review
 let drafting = false;
 const NEW = '__new';
 const VERT = '__verticals';
 const WHATS = '__whatsnew';
 const PRODS = '__products';
 let bpTab = 'overview'; // the blueprint page's open tab
-const linkPick = {};     // per blueprint: { ov: 'all' | token, eng: '' (client team) | token }
+const linkPick = {};     // per blueprint: { ov: 'all' | token, eng: '' (client team) | token, q: search, sort: 'recent' | 'oldest' | 'time' }
 // "What's new": production requests and review comments since you last looked, on blueprints you own (or that
 // have no owner yet), with a switch to show every blueprint. Seen-ness is remembered in this browser.
 let activity = [], whatsAll = false, seenBefore = null, firstLoad = true;
@@ -518,7 +538,7 @@ $('signout').addEventListener('click', () => { if (confirmLeave()) signOut(); })
 async function load() {
   const [ov, lib, act] = await Promise.all([api('/api/admin/overview'), products.length ? null : api('/api/admin/products'), api('/api/admin/activity').catch(() => ({ events: [] }))]);
   activity = act.events || [];
-  data = ov; if (lib) { products = lib.products; drafting = !!lib.drafting; }
+  data = ov; if (lib) { products = lib.products; drafting = !!lib.drafting; templateProducts = lib.templateProducts || []; }
   verticals = (await api('/api/admin/verticals')).verticals;
   $('signin').hidden = true; $('app').hidden = false; $('signout').hidden = false;
   paintMe(); setTimeout(() => askMe(false), 0);
@@ -655,27 +675,29 @@ function renderAdd() {
       <div class="hint seghint" id="${name}Hint">${hint}</div></div>`;
   $('main').innerHTML = `
     <h2>Add a blueprint</h2>
-    <p class="sub">Start from meeting notes, a template, a copy or a blank page, then finish it in the form.</p>
+    <p class="sub">Choose the client and vertical, a starting point, and optionally add meeting notes. Then finish it in the form.</p>
     <form class="wiz" id="buildForm" novalidate>
       <section class="wstep"><h3><span class="wn">1</span>Client</h3>
         <div class="wgrid">
           <div><label for="bName">Client name</label><input id="bName" type="text" maxlength="80" placeholder="e.g. Acme Remit" required></div>
           <div><label for="bSlug">Short name</label><input id="bSlug" type="text" maxlength="63" placeholder="e.g. acme-remit" required><div class="hint">For links and the admin page.</div></div>
           <div><label for="bBy">Your name</label><input id="bBy" type="text" maxlength="80" value="${esc(byName())}"></div>
-        </div></section>
+        </div>
+        <div class="wvert"><label for="bVertical">Vertical</label><select id="bVertical"><option value="">None</option>${verticals.map((v) => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join('')}</select>
+          <div class="hint" id="bVerticalHint">The vertical this blueprint belongs to. With the template, it also brings that vertical’s pain points and use cases.</div></div>
+      </section>
       <section class="wstep"><h3><span class="wn">2</span>Start from</h3>
         <div class="startcards" role="radiogroup" aria-label="Start from">
-          <label class="scard"><input type="radio" name="bStart" value="notes"><b>Meeting notes</b><span>Paste or upload them; the products, integration and pain points are picked out for you.</span></label>
-          <label class="scard"><input type="radio" name="bStart" value="tpl" checked><b>A vertical template</b><span>Journeys, a launch plan and the vertical’s pain points.</span></label>
+          <label class="scard"><input type="radio" name="bStart" value="tpl" checked><b>The template</b><span>Journeys, a launch plan, and the vertical’s pain points.</span></label>
           ${copyable.length ? `<label class="scard"><input type="radio" name="bStart" value="copy"><b>A copy</b><span>Another blueprint’s content, for a new client.</span></label>` : ''}
           <label class="scard"><input type="radio" name="bStart" value="blank"><b>Blank</b><span>An empty form.</span></label>
         </div>
-        <div class="sopt" data-for="tpl"><label for="bVertical">Vertical</label><select id="bVertical">${verticals.map((v) => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join('')}</select></div>
         ${copyable.length ? `<div class="sopt" data-for="copy" hidden><label for="bCopy">Copy of</label><select id="bCopy">${copyable.map((b) => `<option value="${esc(b.slug)}">${esc(nameOf(b))}</option>`).join('')}</select><div class="hint">Keeps its integration and products.</div></div>` : ''}
-        <div class="sopt" data-for="notes" hidden>
+        <label class="notestoggle"><input type="checkbox" id="bUseNotes"><span><b>Add meeting notes</b> The products and pain points they mention are added to what you start from.</span></label>
+        <div class="sopt" id="notesArea" hidden>
           <label for="bNotes">Meeting notes or transcript</label>
           <textarea id="bNotes" rows="7" placeholder="Paste notes or a call transcript here"></textarea>
-          <div class="notesrow"><label class="ghost mini btnlike">Or upload a file<input type="file" id="bNotesFile" accept=".txt,.md,.docx,.pdf,.vtt,.srt" hidden></label><span class="hint" id="bNotesFileName">Word, PDF, text or a transcript (.vtt). Read here, not sent anywhere else.</span>
+          <div class="notesrow"><label class="ghost mini btnlike">Or upload a file<input type="file" id="bNotesFile" accept=".txt,.md,.docx,.pdf,.vtt,.srt" hidden></label><span class="hint" id="bNotesFileName">Word, PDF, text or a transcript (.vtt).</span>
             <button type="button" class="primary" id="bRead">Read the notes</button></div>
           <div id="finds"></div>
         </div></section>
@@ -695,44 +717,66 @@ function renderAdd() {
         <div><button class="primary" type="submit">Upload blueprint</button></div>
         <div class="err" id="upErr" role="alert"></div>
       </form></details>`;
-  let slugTouched = false, found = null;
+  let slugTouched = false, found = null, verticalTouched = false;
   $('bSlug').addEventListener('input', () => { slugTouched = true; });
   $('bName').addEventListener('input', () => { if (!slugTouched) $('bSlug').value = slugify($('bName').value); });
   const start = () => (document.querySelector('input[name="bStart"]:checked') || {}).value || 'tpl';
+  const notesOn = () => $('bUseNotes').checked;
   const methods = () => ({ payments: document.querySelector('input[name="mPayments"]:checked').value, data: document.querySelector('input[name="mData"]:checked').value });
-  const showStart = () => { document.querySelectorAll('.sopt').forEach((d) => { d.hidden = d.dataset.for !== start(); }); $('intStep').hidden = start() === 'copy'; };
-  document.querySelectorAll('input[name="bStart"]').forEach((r) => r.addEventListener('change', showStart));
   const setMethod = (fam, m) => { const r = document.querySelector(`input[name="${fam}"][value="${m}"]`); if (r) r.checked = true; };
-  // Products found in the notes, as they'd be on the chosen integration
   const asChosen = (id) => { const p = products.find((x) => x.id === id); if (!p || fits(p, methods())) return id; return (COUNTERPART[methods()[p.family]] || {})[id] || null; };
+  const vert = () => verticals.find((v) => v.id === $('bVertical').value) || null;
+  // Close enough to count as the same pain point: most of the shorter one's meaningful words are in the other
+  const STOP = new Set('with that this from have they their there them about into over more than when what which your while very also just only some like will would could should been being were does make made'.split(' '));
+  const words = (t) => new Set(String(t).toLowerCase().replace(/\*\*/g, '').match(/[a-z]{4,}/g)?.filter((w) => !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, '')) || []);
+  const similar = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return false; let n = 0; for (const w of A) if (B.has(w)) n++; return n >= 2 && n / Math.min(A.size, B.size) >= 0.3; };
   const drawFinds = () => {
-    if (!found) { $('finds').innerHTML = ''; return; }
-    const prods = found.products.map((f) => ({ ...f, shown: asChosen(f.id) })).filter((f) => f.shown);
-    const uniq = [...new Map(prods.map((f) => [f.shown, f])).values()];
-    const q = (t) => `<q>${esc(t)}</q>`;
+    if (!found || !notesOn()) { $('finds').innerHTML = ''; return; }
+    const s = start(), q = (t) => `<q>${esc(t)}</q>`, M = methods();
+    // Products: the template's (when it's the base), and what the notes add
+    const fromTpl = s === 'tpl' ? [...new Set(templateProducts.map(asChosen).filter(Boolean))].filter((id) => products.some((p) => p.id === id)) : [];
+    const fromNotes = [...new Map(found.products.map((f) => ({ ...f, shown: asChosen(f.id) })).filter((f) => f.shown && !fromTpl.includes(f.shown)).map((f) => [f.shown, f])).values()];
+    const noteFor = (id) => found.products.find((f) => asChosen(f.id) === id);
+    const pname = (id) => (products.find((p) => p.id === id) || {}).name || id;
+    const v = vert(), vRows = s === 'tpl' && v ? (v.painRows || []) : [];
+    const pains = found.pains.map((t, i) => ({ t, i, like: vRows.find((r) => similar(t, r.pain)) }));
     $('finds').innerHTML = `<div class="finds">
-      <h4>Found in the notes</h4><p class="hint">Read ${found.lines} lines. Untick anything that’s wrong; nothing else is added.</p>
-      <div class="fgroup"><div class="fh">Products</div>${uniq.length ? uniq.map((f) => { const p = products.find((x) => x.id === f.shown); return `<label class="fitem"><input type="checkbox" data-fprod="${esc(f.shown)}" checked><span><b>${esc(p.name)}</b>${f.shown !== f.id ? ` <span class="tag">${methods()[p.family] === 'sdk' ? 'SDK' : 'API'} version of ${esc(f.name)}</span>` : ''}${q(f.evidence[0])}</span></label>`; }).join('') : '<p class="never">No products recognised. Add them in the form.</p>'}</div>
-      <div class="fgroup"><div class="fh">Vertical</div><select id="fVertical"><option value="">None</option>${verticals.map((v) => `<option value="${esc(v.id)}"${found.vertical && found.vertical.id === v.id ? ' selected' : ''}>${esc(v.name)}</option>`).join('')}</select>${found.vertical ? q(found.vertical.evidence[0]) : '<p class="never">Not in the notes.</p>'}</div>
-      <div class="fgroup"><div class="fh">Pain points</div>${found.pains.length ? found.pains.map((t, i) => `<label class="fitem"><input type="checkbox" data-fpain="${i}" checked><span>${esc(t)}</span></label>`).join('') : '<p class="never">None found.</p>'}</div>
+      <h4>What goes into the blueprint</h4><p class="hint">Read ${found.lines} lines. Untick anything you don’t want.</p>
+      <div class="fgroup"><div class="fh">Products</div>
+        ${fromTpl.map((id) => { const n = noteFor(id); return `<label class="fitem"><input type="checkbox" data-fprod="${esc(id)}" checked><span><b>${esc(pname(id))}</b> <span class="tag">From the template</span>${n ? ` <span class="tag">Also in the notes</span>${q(n.evidence[0])}` : ''}</span></label>`; }).join('')}
+        ${fromNotes.map((f) => `<label class="fitem"><input type="checkbox" data-fprod="${esc(f.shown)}" checked><span><b>${esc(pname(f.shown))}</b> <span class="tag new">From the notes</span>${f.shown !== f.id ? ` <span class="tag">${M[(products.find((p) => p.id === f.shown) || {}).family] === 'sdk' ? 'SDK' : 'API'} version of ${esc(f.name)}</span>` : ''}${q(f.evidence[0])}</span></label>`).join('')}
+        ${!fromTpl.length && !fromNotes.length ? '<p class="never">No products recognised in the notes.</p>' : ''}
+        ${s === 'copy' ? '<p class="hint">The copy keeps all its own products; these are added to them.</p>' : ''}</div>
+      <div class="fgroup"><div class="fh">Pain points</div>
+        ${vRows.length ? `<div class="vpains"><div class="vph">From the ${esc(v.name)} vertical <span class="never">(${vRows.length}, kept)</span></div><ul>${vRows.map((r) => `<li>${esc(String(r.pain).replace(/\*\*/g, ''))}</li>`).join('')}</ul></div>` : ''}
+        ${pains.length ? `<div class="vph">${vRows.length ? 'Added from the notes' : 'From the notes'}</div>${pains.map((p) => `<label class="fitem${p.like ? ' dim' : ''}"><input type="checkbox" data-fpain="${p.i}"${p.like ? '' : ' checked'}><span>${esc(p.t)}${p.like ? `<span class="likeof">Similar to the vertical’s “${esc(String(p.like.pain).replace(/\*\*/g, ''))}”, so it’s unticked. Tick it to add it anyway.</span>` : ''}</span></label>`).join('')}` : `<p class="never">${vRows.length ? 'No other pain points in the notes.' : 'None found in the notes.'}</p>`}</div>
       ${found.timeline.length || found.questions.length ? `<div class="fgroup"><div class="fh">For you to follow up <span class="never">(not added to the blueprint)</span></div><ul class="fref">${[...new Set([...found.timeline, ...found.questions])].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
     </div>`;
   };
+  const showStart = () => {
+    document.querySelectorAll('.sopt[data-for]').forEach((d) => { d.hidden = d.dataset.for !== start(); });
+    $('notesArea').hidden = !notesOn(); $('intStep').hidden = start() === 'copy'; drawFinds();
+  };
+  document.querySelectorAll('input[name="bStart"]').forEach((r) => r.addEventListener('change', showStart));
+  $('bUseNotes').addEventListener('change', showStart);
+  $('bVertical').addEventListener('change', () => { verticalTouched = true; drawFinds(); });
   document.querySelectorAll('input[name="mPayments"], input[name="mData"]').forEach((r) => r.addEventListener('change', drawFinds));
   $('bNotesFile').addEventListener('change', () => { const f = $('bNotesFile').files[0]; $('bNotesFileName').textContent = f ? f.name : ''; });
   $('bRead').addEventListener('click', async () => {
     const btn = $('bRead'); btn.disabled = true; btn.textContent = 'Reading…'; $('bErr').textContent = '';
     try {
       const f = $('bNotesFile').files[0];
-      const body = f ? { filename: f.name, data: await b64(f) } : { text: $('bNotes').value };
       if (!f && !$('bNotes').value.trim()) throw new Error('Paste the notes or upload a file first.');
-      found = await api('/api/admin/notes', { method: 'POST', body: JSON.stringify(body) });
+      found = await api('/api/admin/notes', { method: 'POST', body: JSON.stringify(f ? { filename: f.name, data: await b64(f) } : { text: $('bNotes').value }) });
       for (const [fam, name] of [['payments', 'mPayments'], ['data', 'mData']]) {
         const m = found.methods[fam];
         if (m.value) setMethod(name, m.value);
         $(name + 'Hint').innerHTML = m.value ? `From the notes: ${esc(m.value.toUpperCase())}, because of <q>${esc(m.evidence[0])}</q>` : m.basis === 'both' ? 'The notes mention both SDK and API: choose one.' : (fam === 'data' ? 'Data isn’t in the notes.' : 'The notes don’t say: choose one.');
       }
-      if (found.vertical) $('bVertical').value = found.vertical.id;
+      if (found.vertical) {
+        if (!verticalTouched || !$('bVertical').value) $('bVertical').value = found.vertical.id;
+        $('bVerticalHint').innerHTML = `From the notes: ${esc(found.vertical.name)}, because of <q>${esc(found.vertical.evidence[0])}</q>`;
+      }
       drawFinds();
     } catch (err) { $('bErr').textContent = err.message; }
     finally { btn.disabled = false; btn.textContent = 'Read the notes again'; }
@@ -744,17 +788,19 @@ function renderAdd() {
     if (!clientName) { $('bErr').textContent = 'Add the client name.'; $('bName').focus(); return; }
     if (!SLUG_OK.test(slug)) { $('bErr').textContent = 'Use a short name with lowercase letters, digits and hyphens, e.g. "acme-remit".'; $('bSlug').focus(); return; }
     const s = start();
-    if (s === 'notes' && !found) { $('bErr').textContent = 'Read the notes first, so you can check what was found.'; $('bRead').focus(); return; }
+    if (notesOn() && !found) { $('bErr').textContent = 'Read the notes first, so you can check what goes in.'; $('bRead').focus(); return; }
     btn.disabled = true;
     try {
-      const body = { action: 'create', slug, by, clientName, ownerEmail: myEmail() || undefined };
+      const body = { action: 'create', slug, by, clientName, ownerEmail: myEmail() || undefined, vertical: $('bVertical').value || undefined };
       if (s !== 'copy') body.methods = methods();
-      if (s === 'tpl') { body.template = 'standard'; body.vertical = $('bVertical').value; }
+      if (s === 'tpl') body.template = 'standard';
       else if (s === 'copy') body.copyFrom = $('bCopy').value;
-      else if (s === 'notes') {
-        body.template = 'standard'; if ($('fVertical').value) body.vertical = $('fVertical').value;
-        body.picks = { products: [...document.querySelectorAll('[data-fprod]:checked')].map((x) => x.dataset.fprod), pains: [...document.querySelectorAll('[data-fpain]:checked')].map((x) => found.pains[Number(x.dataset.fpain)]) };
-      } else body.content = newContent(clientName, by);
+      else body.content = newContent(clientName, by);
+      if (notesOn() && found) body.picks = {
+        products: [...document.querySelectorAll('[data-fprod]:checked')].map((x) => x.dataset.fprod),
+        pains: [...document.querySelectorAll('[data-fpain]:checked')].map((x) => found.pains[Number(x.dataset.fpain)]),
+        addOnly: s === 'copy',
+      };
       const row = await api('/api/admin/builder', { method: 'POST', body: JSON.stringify(body) });
       await load(); openEditor(row);
     } catch (err) { $('bErr').textContent = err.message; } finally { btn.disabled = false; }
@@ -975,7 +1021,8 @@ function renderDetail(bp) {
   const stateLine = !bp.published ? 'Not published yet.' : built ? `Published ${esc(when(bp.published_at))}${bp.uploaded_by ? ' by ' + esc(bp.uploaded_by) : ''}.` : `File ${bp.uploaded_by ? 'uploaded by ' + esc(bp.uploaded_by) + ', ' : 'updated '}${esc(when(bp.updated_at))}.`;
   const prodReqOpen = activeClient && activeClient.production_requested_at && activeClient.environment !== 'production';
   const openComments = bp.open_comments || 0;
-  const statusBits = !bp.published ? ['Not published yet'] : [
+  const vName = (verticals.find((v) => v.id === bp.vertical) || {}).name;
+  const statusBits = !bp.published ? [...(vName ? [esc(vName)] : []), 'Not published yet'] : [...(vName ? [esc(vName)] : []),
     activeClient ? `${esc(activeClient.label)}: ${bp.items ? `${activeClient.done} of ${bp.items} done` : 'no checklist'}` : 'No client team link yet',
     activeClient && (activeClient.last_active || activeClient.last_view) ? `last active ${esc(when(activeClient.last_active || activeClient.last_view))}` : 'no client visits yet',
     `${built ? 'published' : 'updated'} ${esc(when(built ? bp.published_at : bp.updated_at))}`,
@@ -1025,29 +1072,49 @@ function renderDetail(bp) {
         </div>
         ${openComments ? `<p class="by"><button type="button" class="linkish" data-gotab="comments">${openComments} open review comment${openComments === 1 ? '' : 's'}</button></p>` : ''}
       </div>` : `<div class="empty">No client team link yet. <button type="button" class="linkish" data-gotab="links">Create one</button></div>`}
-      ${allLinks.length > 1 ? `<div class="lfilter"><label for="ovLink">Link</label><select id="ovLink"><option value="all">All links</option>${allLinks.map((l) => `<option value="${esc(l.token)}"${(linkPick[bp.slug] || {}).ov === l.token ? ' selected' : ''}>${esc(l.label)} (${l.kind === 'client' ? 'client link' : 'Lean link'}${l.revoked_at ? ', revoked' : ''})</option>`).join('')}</select></div>` : ''}
-      ${(() => { const pick = (linkPick[bp.slug] || {}).ov || 'all';
-        const rows = allLinks.filter((l) => pick === 'all' || l.token === pick).flatMap((l) => (l.people || []).map((x) => ({ ...x, link: l.label, linkKind: l.kind })));
-        if (!rows.length) return '';
-        const isLean = (x) => (data.leanDomains || ['leantech.me']).some((d) => String(x.email || '').toLowerCase().endsWith('@' + d) || String(x.email || '').toLowerCase().endsWith('.' + d));
-        rows.forEach((x) => { x.kind = isLean(x) ? 'lean' : x.kind === 'other' ? 'other' : x.linkKind === 'client' ? (x.kind || 'client') : 'other'; });
-        rows.sort((x, y) => (x.linkKind !== 'client') - (y.linkKind !== 'client') || (x.kind === 'lean') - (y.kind === 'lean') || y.seconds - x.seconds);
-        return `<h3 class="subh">People</h3><div class="ptable-wrap"><table class="ptable"><thead><tr><th>Person</th><th>Link</th><th>Visits</th><th>Time on page</th><th>Last active</th></tr></thead><tbody>
-          ${rows.map((x) => `<tr>
-            <td><b title="${esc(x.email)}">${esc(x.name || x.email)}</b> ${(x.kind || 'client') === 'lean' ? '<span class="tag">Lean</span>' : (x.kind === 'other' ? '<span class="tag">Other</span>' : '')}<div class="by">${esc(x.email)}</div></td>
-            <td>${esc(x.link)} <span class="by">${x.linkKind === 'client' ? 'client link' : 'Lean link'}</span></td>
-            <td class="num">${x.visits}${x.visits ? ` <span class="by">(${x.engaged || 0} engaged)</span>` : ''}</td>
-            <td class="num">${esc(dur(x.seconds || 0))}</td>
-            <td title="${esc(full(x.last))}">${esc(when(x.last))}</td></tr>`).join('')}</tbody></table>
-          <p class="hint">Everyone who viewed this blueprint, on any of its links. Time counts while the page is in front and the person is active; engaged means at least 10 seconds, or a click or tick. Only the client team counts toward the numbers above.</p></div>`; })()}
-      <h3 class="subh">Recent visits</h3>
-      ${(() => { const pick = (linkPick[bp.slug] || {}).ov || 'all'; const vs = pick === 'all' ? visits : visits.filter((v) => v.token === pick);
-        return vs.length ? `<div class="list">${vs.slice(0, 8).map((v) => `
-        <div class="visit">
-          <time datetime="${esc(v.opened_at)}" title="${esc(full(v.opened_at))}">${esc(when(v.opened_at))}</time>
-          <div><strong>${esc(v.viewer_name || v.label)}</strong>${v.viewer_name ? ` <span class="d" style="display:inline">${esc(v.label)}</span>` : ''} ${v.kind === 'internal' || v.viewer_kind === 'lean' ? '<span class="tag">Lean</span>' : ''}</div>
-          <div class="num d">${dur(v.seconds_visible)}</div>
-        </div>`).join('')}</div>` : '<div class="empty">No visits yet on this link.</div>'; })()}
+      ${(() => {
+        const st = linkPick[bp.slug] || {}, pick = st.ov || 'all', q = (st.q || '').trim().toLowerCase(), sort = st.sort || 'recent';
+        const isLean = (e) => (data.leanDomains || ['leantech.me']).some((d) => String(e || '').toLowerCase().endsWith('@' + d) || String(e || '').toLowerCase().endsWith('.' + d));
+        const ls = allLinks.filter((l) => pick === 'all' || l.token === pick);
+        // One row per person, across the chosen links: total visits, engaged visits, time and last active
+        const byEmail = new Map();
+        for (const l of ls) for (const x of l.people || []) {
+          const k = String(x.email || '').toLowerCase(); const cur = byEmail.get(k) || { name: x.name, email: x.email, visits: 0, engaged: 0, seconds: 0, last: null, links: [], client: false };
+          cur.visits += x.visits || 0; cur.engaged += x.engaged || 0; cur.seconds += x.seconds || 0;
+          if (!cur.last || (x.last && x.last > cur.last)) cur.last = x.last;
+          if (!cur.links.includes(l.label)) cur.links.push(l.label);
+          if (l.kind === 'client' && (x.kind || 'client') === 'client') cur.client = true;
+          byEmail.set(k, cur);
+        }
+        let people = [...byEmail.values()].map((x) => ({ ...x, lean: isLean(x.email) }));
+        const total = people.length;
+        if (q) people = people.filter((x) => `${x.name || ''} ${x.email || ''}`.toLowerCase().includes(q));
+        people.sort((x, y) => sort === 'time' ? y.seconds - x.seconds : sort === 'oldest' ? String(x.last || '').localeCompare(String(y.last || '')) : String(y.last || '').localeCompare(String(x.last || '')));
+        const log = visits.filter((v) => (pick === 'all' || v.token === pick) && (!q || `${v.viewer_name || ''} ${v.viewer_email || ''}`.toLowerCase().includes(q)));
+        if (!total && !visits.length) return '<h3 class="subh">People</h3><div class="empty">No visits yet.</div>';
+        return `<div class="pfilters">
+            ${allLinks.length > 1 ? `<label>Link <select id="ovLink"><option value="all">All links</option>${allLinks.map((l) => `<option value="${esc(l.token)}"${pick === l.token ? ' selected' : ''}>${esc(l.label)} (${l.kind === 'client' ? 'client link' : 'Lean link'}${l.revoked_at ? ', revoked' : ''})</option>`).join('')}</select></label>` : ''}
+            <label>Search <input id="pSearch" type="search" value="${esc(st.q || '')}" placeholder="Name or email" autocomplete="off"></label>
+            <label>Sort <select id="pSort"><option value="recent"${sort === 'recent' ? ' selected' : ''}>Last active, newest first</option><option value="oldest"${sort === 'oldest' ? ' selected' : ''}>Last active, oldest first</option><option value="time"${sort === 'time' ? ' selected' : ''}>Most time on page</option></select></label>
+          </div>
+          <h3 class="subh">People <span class="never">${q ? `${people.length} of ${total}` : total}</span></h3>
+          ${people.length ? `<div class="ptable-wrap"><table class="ptable"><thead><tr><th>Person</th><th>Visits</th><th>Time on page</th><th>Last active</th></tr></thead><tbody>
+            ${people.map((x) => `<tr>
+              <td><b title="${esc(x.email)}">${esc(x.name || x.email)}</b> ${x.lean ? '<span class="tag">Lean</span>' : x.client ? '' : '<span class="tag">Other</span>'}<div class="by">${esc(x.email)}${allLinks.length > 1 ? ` · ${esc(x.links.join(', '))}` : ''}</div></td>
+              <td class="num">${x.visits} <span class="by">(${x.engaged} engaged)</span></td>
+              <td class="num">${esc(dur(x.seconds))}</td>
+              <td title="${esc(full(x.last))}">${esc(when(x.last))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No one matches.</div>'}
+          <p class="hint">Time counts while the page is in front and the person is active. Engaged: at least 10 seconds, or a click or tick. Only the client team counts toward the numbers above.</p>
+          <h3 class="subh">Visit log <span class="never">latest first</span></h3>
+          ${log.length ? `<div class="ptable-wrap"><table class="ptable vlog"><thead><tr><th>Person</th>${allLinks.length > 1 ? '<th>Link</th>' : ''}<th>Started</th><th>Last active</th><th>Time on page</th></tr></thead><tbody>
+            ${log.slice(0, 50).map((v) => `<tr>
+              <td><b>${esc(v.viewer_name || v.viewer_email || 'Someone')}</b> ${isLean(v.viewer_email) ? '<span class="tag">Lean</span>' : ''}</td>
+              ${allLinks.length > 1 ? `<td>${esc(v.label)}</td>` : ''}
+              <td title="${esc(full(v.opened_at))}">${esc(when(v.opened_at))}</td>
+              <td title="${esc(full(v.last_active))}">${esc(when(v.last_active))}</td>
+              <td class="num">${esc(dur(v.seconds_visible))}</td></tr>`).join('')}</tbody></table></div>
+            ${log.length > 50 ? `<p class="hint">Showing the 50 most recently active of ${log.length}.</p>` : ''}` : '<div class="empty">No visits match.</div>'}`;
+      })()}
     </section>
 
     <section class="tabpanel" data-panel="links">
@@ -1088,6 +1155,7 @@ function renderDetail(bp) {
 
     <section class="tabpanel" data-panel="settings">
       <div class="kv">
+        <div class="kv-row"><span class="k">Vertical</span><select id="bpVertical" aria-label="The vertical this blueprint belongs to"><option value="">None</option>${verticals.map((v) => `<option value="${esc(v.id)}"${bp.vertical === v.id ? ' selected' : ''}>${esc(v.name)}</option>`).join('')}</select></div>
         <div class="kv-row"><span class="k">Owner</span><span>${bp.owner_email ? `<b>${esc(bp.owner_name || bp.owner_email)}</b> <span class="by">${esc(bp.owner_email)}</span> <button type="button" class="linkish" id="ownerChange">Change</button>` : `<span class="never">None</span> <button type="button" class="linkish" id="ownerMe">Make me the owner</button>`}</span></div>
         <div class="kv-row"><span class="k">Also notify</span><form class="notifyform" id="notifyForm"><input id="notifyEmail" type="text" value="${esc(bp.notify_email || '')}" placeholder="name@leantech.me, …" autocomplete="email" spellcheck="false" aria-label="Also notify by email"><button class="ghost mini" type="submit">Save</button></form></div>
         ${data.storage ? `<div class="kv-row"><span class="k">Recordings</span><span>${Math.round(data.storage.usedBytes / 1048576)} of ${Math.round(data.storage.budgetBytes / 1048576)} MB used</span></div>` : ''}
@@ -1097,6 +1165,10 @@ function renderDetail(bp) {
       <div class="dangerzone"><span>Delete this blueprint, its ${allLinks.length} ${allLinks.length === 1 ? 'link' : 'links'}, visits and ticks. This can’t be undone.</span><button class="ghost danger" id="delBp">Delete blueprint</button></div>
     </section>`;
 
+  if ($('bpVertical')) $('bpVertical').addEventListener('change', async () => {
+    try { await api('/api/admin/blueprints', { method: 'PATCH', body: JSON.stringify({ slug: bp.slug, vertical: $('bpVertical').value }) }); await load(); status('Vertical saved'); }
+    catch (err) { status(err.message); }
+  });
   // Tabs: the remembered tab is shown; opening one loads what it needs
   const showTab = (id) => {
     if (!document.querySelector(`.tabpanel[data-panel="${id}"]`)) id = 'overview';
@@ -1171,6 +1243,12 @@ function renderDetail(bp) {
   if ($('engBox')) $('engBox').addEventListener('toggle', () => { if ($('engBox').open) loadEng(); });
   if ($('engLink')) $('engLink').addEventListener('change', () => { linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), eng: $('engLink').value }; loadEng(); });
   if ($('ovLink')) $('ovLink').addEventListener('change', () => { linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), ov: $('ovLink').value }; render(); });
+  if ($('pSort')) $('pSort').addEventListener('change', () => { linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), sort: $('pSort').value }; render(); });
+  if ($('pSearch')) $('pSearch').addEventListener('input', () => {
+    const v = $('pSearch').value, at = $('pSearch').selectionStart;
+    linkPick[bp.slug] = { ...(linkPick[bp.slug] || {}), q: v }; render();
+    const el = $('pSearch'); if (el) { el.focus(); el.setSelectionRange(at, at); }
+  });
   // Version history
   if ($('versionsBox')) $('versionsBox').addEventListener('toggle', async () => {
     if (!$('versionsBox').open) return;

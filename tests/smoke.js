@@ -896,7 +896,7 @@ try {
   const inPlan = drQ.launch.phases.flatMap((ph) => ph.rows.map((x) => x.product));
   assert.ok(drQ.launch.methods.payments === 'sdk' && inPlan.includes('sip') && inPlan.includes('aof') && inPlan.includes('recon') && !inPlan.includes('otp') && !inPlan.includes('cmi')); ok('SDK payments: the plan has SIP and AoF, without the API products or the CMI');
   assert.ok(drQ.journeys.items.every((j) => !(j.products || []).some((id) => ['otp', 'rec', 'cmi'].includes(id))) && /Powered by \*\*Single Instant Payments/.test(drQ.journeys.items[0].powers)); ok('journeys switch to the SDK products, with honest wording');
-  assert.equal(drQ.pain.rows[0].pain, 'Card fees on top-ups'); ok('pain points kept from the notes come first');
+  assert.ok(drQ.pain.rows.length > 1 && drQ.pain.rows[drQ.pain.rows.length - 1].pain === 'Card fees on top-ups' && drQ.pain.rows[0].pain !== 'Card fees on top-ups'); ok('pain points kept from the notes are added after the vertical’s');
   const pv2 = await (await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'preview', content: drQ }) })).json();
   assert.ok(pv2.html.includes('id="panel-u-sip"') && pv2.html.includes('data-check="u-sip-1"') && pv2.html.includes('data-check="u-sip-2"')); ok('an uploaded guide appears on the blueprint, with its own step keys');
   assert.ok(!/<script>x<\/script>/.test(pv2.html)); ok('markup in uploaded steps is cleaned');
@@ -906,6 +906,25 @@ try {
   const CUS = 'cus-' + Date.now().toString(36);
   await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: CUS, by: 'Aliaa', clientName: 'Cus Co', template: 'standard', methods: { payments: 'sdk' }, picks: { products: [ad.id] } }) });
   assert.equal((await P({ action: 'remove', id: ad.id })).status, 409); ok('a product in use can’t be removed');
+  // ---------- The vertical, and notes on top of any starting point ----------
+  const vcat = await (await admin('/api/admin/products')).json();
+  assert.ok(vcat.templateProducts.includes('otp') && vcat.templateProducts.includes('rec')); ok('the admin page gets the template’s products, for the notes review');
+  const VB = 'vert-' + Date.now().toString(36);
+  assert.ok([200, 201].includes((await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: VB, by: 'Aliaa', clientName: 'Vert Co', template: 'standard', vertical: 'remittance', picks: { products: ['otp', 'rec', 'cmi', 'recon'], pains: ['Manual reconciliation every morning'] } }) })).status));
+  let vov = (await (await admin('/api/admin/overview')).json()).blueprints.find((b) => b.slug === VB);
+  assert.equal(vov.vertical, 'remittance'); ok('a blueprint is saved with the vertical it belongs to');
+  const vdr = (await (await admin(`/api/admin/builder?slug=${VB}`)).json()).draft;
+  const vplan = vdr.launch.phases.flatMap((ph) => ph.rows.map((x) => x.product));
+  assert.ok(vplan.includes('recon') && vplan.includes('otp') && !vplan.includes('payouts')); ok('template and notes together: the products kept from both are in the plan');
+  assert.ok(vdr.pain.rows[vdr.pain.rows.length - 1].pain === 'Manual reconciliation every morning' && vdr.pain.rows.length > 1); ok('template and notes together: the notes’ pain points follow the vertical’s');
+  assert.equal((await admin('/api/admin/blueprints', { method: 'PATCH', body: JSON.stringify({ slug: VB, vertical: 'lending' }) })).status, 200);
+  vov = (await (await admin('/api/admin/overview')).json()).blueprints.find((b) => b.slug === VB); assert.equal(vov.vertical, 'lending'); ok('a blueprint’s vertical can be changed in Settings');
+  assert.equal((await admin('/api/admin/blueprints', { method: 'PATCH', body: JSON.stringify({ slug: VB, vertical: 'no-such' }) })).status, 400); ok('an unknown vertical is refused');
+  assert.equal((await admin('/api/admin/blueprints', { method: 'PATCH', body: JSON.stringify({ slug: SLUG, vertical: 'remittance' }) })).status, 200); ok('uploaded blueprints can belong to a vertical too');
+  const CB = 'copyn-' + Date.now().toString(36);
+  await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: CB, by: 'Aliaa', clientName: 'Copy Co', copyFrom: VB, picks: { products: ['avs'], pains: [], addOnly: true } }) });
+  const cplan = (await (await admin(`/api/admin/builder?slug=${CB}`)).json()).draft.launch.phases.flatMap((ph) => ph.rows.map((x) => x.product));
+  assert.ok(cplan.includes('avs') && cplan.includes('recon') && cplan.includes('otp')); ok('notes on a copy add products and remove none');
   console.log(`\n${passed} checks passed.`);
 } catch (err) {
   console.error('\nFAILED after ' + passed + ' checks:', err.message);

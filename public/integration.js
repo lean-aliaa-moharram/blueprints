@@ -42,12 +42,15 @@ export function applyIntegration(c, methods, lib) {
 }
 
 // From the notes review: only the products that were kept are in the plan (new ones go into Phase 1), journeys
-// left without products are dropped, and kept pain points go first, with solve and advantage left to fill in.
+// left without products are dropped, and kept pain points are added after the vertical's, with solve and advantage
+// left to fill in. addOnly (a copy): the notes add products and pain points, and remove nothing.
 export function applyPicks(c, picks, lib) {
   const valid = new Set(lib.map((p) => p.id));
   const keep = new Set((Array.isArray(picks && picks.products) ? picks.products : []).filter((id) => valid.has(id)));
   c.launch = c.launch || {};
   c.launch.phases = Array.isArray(c.launch.phases) && c.launch.phases.length ? c.launch.phases : [{ label: 'Phase 1', title: '', bullets: '', rows: [], unconfirmed: false }];
+  const addOnly = !!(picks && picks.addOnly);   // a copy keeps its own products; the notes only add
+  if (addOnly) for (const ph of c.launch.phases) for (const r of ph.rows || []) if (r.product && r.product !== 'custom') keep.add(r.product);
   for (const ph of c.launch.phases) ph.rows = (ph.rows || []).filter((r) => r.product === 'custom' || keep.has(r.product));
   const placed = new Set(c.launch.phases.flatMap((ph) => ph.rows.map((r) => r.product)));
   for (const id of keep) if (!placed.has(id)) c.launch.phases[0].rows.push({ product: id });
@@ -65,6 +68,7 @@ export function applyPicks(c, picks, lib) {
     });
   }
   const pains = (Array.isArray(picks && picks.pains) ? picks.pains : []).map((t) => String(t).trim().slice(0, 400)).filter(Boolean).slice(0, 20);
-  if (pains.length) { c.pain = c.pain || { intro: '', rows: [] }; c.pain.rows = [...pains.map((p) => ({ group: 'business', pain: p, solve: '', advantage: '' })), ...(c.pain.rows || [])]; }
+  // After the vertical's own pain points
+  if (pains.length) { c.pain = c.pain || { intro: '', rows: [] }; c.pain.rows = [...(c.pain.rows || []), ...pains.map((p) => ({ group: 'business', pain: p, solve: '', advantage: '' }))]; }
   return c;
 }
