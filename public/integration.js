@@ -67,6 +67,13 @@ export function applyPicks(c, picks, lib) {
       return j.products.length > 0;
     });
   }
+  // The pain points as chosen and edited in the review: the whole list, in order
+  if (picks && Array.isArray(picks.painRows)) {
+    const t = (v, n) => String(v || '').trim().slice(0, n);
+    c.pain = c.pain || { intro: '', rows: [] };
+    c.pain.rows = picks.painRows.slice(0, 30).map((r) => ({ group: ['business', 'technical', 'customer'].includes(r && r.group) ? r.group : 'business', pain: t(r && r.pain, 400), solve: t(r && r.solve, 600), advantage: t(r && r.advantage, 400) })).filter((r) => r.pain);
+    return c;
+  }
   const pains = (Array.isArray(picks && picks.pains) ? picks.pains : []).map((t) => String(t).trim().slice(0, 400)).filter(Boolean).slice(0, 20);
   // After the vertical's own pain points
   if (pains.length) { c.pain = c.pain || { intro: '', rows: [] }; c.pain.rows = [...(c.pain.rows || []), ...pains.map((p) => ({ group: 'business', pain: p, solve: '', advantage: '' }))]; }

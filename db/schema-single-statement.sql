@@ -220,5 +220,9 @@ BEGIN
 
   -- The vertical a blueprint belongs to (a verticals.id), chosen when it's created and changeable in Settings.
   ALTER TABLE blueprints ADD COLUMN IF NOT EXISTS vertical TEXT;
+
+  -- Each vertical's journeys ({ title, intro, items }): a blueprint started from the template gets its vertical's
+  -- journeys. Empty: the built-in vertical's journeys if there are any, otherwise none.
+  ALTER TABLE verticals ADD COLUMN IF NOT EXISTS journeys JSONB;
 END
 $$;

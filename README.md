@@ -363,3 +363,14 @@ The Overview tab shows these per person: visits (and engaged visits), time on pa
 - **Products:** the review lists the template's products alongside those the notes add, each labelled with its quote.
 - **Pain points:** the vertical's are kept, and the notes' are **added after** them. A notes line that's close to one the vertical already has is flagged and unticked.
 - **On a copy,** the notes only add (`picks.addOnly`).
+
+**Review before creating:** the Add page's **Review** step lists the template's products (and any from the notes) to tick in or out, and **every** pain point (the vertical's and the notes') with a tick box and editable wording. The kept, edited list is sent as `picks.painRows` and replaces the template's.
+
+**Preview** runs the same steps as Create with `dryRun: true` and shows the page, saving nothing. You can create straight from the preview.
+
+**Copy** works from any blueprint: a form-built one's latest draft (`copyVersion: "draft"`), or any published page, uploaded ones included (`copyVersion: "published"`, read into the form by the importer).
+
+**Journeys belong to the vertical** (`verticals.journeys`: a title, intro and items), edited on the Verticals page.
+- **New blueprints from the template** get their vertical's journeys. Without any, the journeys section starts empty, and the form's note says to add them.
+- **The template's own wording is neutral:** hero, summary, journeys title and intro.
+- **Remittance's built-in journeys** are the original three, and stored Remittance entries without journeys fall back to them.

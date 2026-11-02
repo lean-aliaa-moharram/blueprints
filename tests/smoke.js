@@ -925,6 +925,39 @@ try {
   await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: CB, by: 'Aliaa', clientName: 'Copy Co', copyFrom: VB, picks: { products: ['avs'], pains: [], addOnly: true } }) });
   const cplan = (await (await admin(`/api/admin/builder?slug=${CB}`)).json()).draft.launch.phases.flatMap((ph) => ph.rows.map((x) => x.product));
   assert.ok(cplan.includes('avs') && cplan.includes('recon') && cplan.includes('otp')); ok('notes on a copy add products and remove none');
+  // ---------- Preview before creating, chosen pain points, copying any blueprint ----------
+  const B2 = (body) => admin('/api/admin/builder', { method: 'POST', body: JSON.stringify(body) });
+  const DRY = 'dry-' + Date.now().toString(36);
+  const dry = await (await B2({ action: 'create', slug: DRY, by: 'Aliaa', clientName: 'Dry Co', template: 'standard', vertical: 'remittance', dryRun: true, picks: { products: ['otp'], painRows: [{ group: 'business', pain: 'Edited pain point', solve: 'Lean fixes it', advantage: '' }] } })).json();
+  assert.ok(dry.html.includes('Edited pain point') && dry.html.includes('Dry Co')); ok('Preview shows the blueprint exactly as it would be created');
+  assert.equal((await admin(`/api/admin/builder?slug=${DRY}`)).status, 404); ok('Preview saves nothing');
+  const PK = 'pick-' + Date.now().toString(36);
+  await B2({ action: 'create', slug: PK, by: 'Aliaa', clientName: 'Pick Co', template: 'standard', vertical: 'remittance', picks: { products: ['otp', 'rec'], painRows: [{ group: 'technical', pain: 'Second, edited', solve: 'S', advantage: 'A' }, { group: 'business', pain: 'From the notes', solve: '', advantage: '' }] } });
+  const pkd = (await (await admin(`/api/admin/builder?slug=${PK}`)).json()).draft;
+  assert.ok(pkd.pain.rows.length === 2 && pkd.pain.rows[0].pain === 'Second, edited' && pkd.pain.rows[0].group === 'technical' && pkd.pain.rows[1].pain === 'From the notes'); ok('only the pain points ticked in the review are kept, as edited, in order');
+  const CP1 = 'cpub-' + Date.now().toString(36);
+  const cpu = await B2({ action: 'create', slug: CP1, by: 'Aliaa', clientName: 'From Upload Co', copyFrom: SLUG, copyVersion: 'published' });
+  assert.ok([200, 201].includes(cpu.status)); const cpd = (await (await admin(`/api/admin/builder?slug=${CP1}`)).json()).draft;
+  assert.ok(cpd.client.name === 'From Upload Co' && /published version/.test(cpd.reviewNote)); ok('an uploaded blueprint can be copied from its published page');
+  const CP2 = 'cdr-' + Date.now().toString(36);
+  assert.ok([200, 201].includes((await B2({ action: 'create', slug: CP2, by: 'Aliaa', clientName: 'Draft Copy Co', copyFrom: PK, copyVersion: 'draft' })).status));
+  assert.ok(/latest draft/.test((await (await admin(`/api/admin/builder?slug=${CP2}`)).json()).draft.reviewNote)); ok('a form-built blueprint can be copied from its latest draft');
+  assert.equal((await B2({ action: 'create', slug: 'x' + CP2, by: 'Aliaa', clientName: 'X', copyFrom: PK, copyVersion: 'published' })).status, 400); ok('copying the published version of an unpublished blueprint is refused');
+  // ---------- Journeys belong to the vertical ----------
+  const JR = 'jr-' + Date.now().toString(36), JE = 'je-' + Date.now().toString(36);
+  await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: JR, by: 'Aliaa', clientName: 'Rem Co', template: 'standard', vertical: 'remittance' }) });
+  await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: JE, by: 'Aliaa', clientName: 'Emerge Co', template: 'standard', vertical: 'emerging-industries' }) });
+  const jrd = (await (await admin(`/api/admin/builder?slug=${JR}`)).json()).draft, jed = (await (await admin(`/api/admin/builder?slug=${JE}`)).json()).draft;
+  assert.ok(jrd.journeys.items.length === 3 && jrd.journeys.title === 'The remittance journey, end to end'); ok('Remittance blueprints get the Remittance journeys');
+  assert.ok(jed.journeys.items.length === 0 && !/remittance/i.test(JSON.stringify(jed.journeys)) && !/remittance|correspondent/i.test(jed.hero.subtitle + jed.summary)); ok('other verticals don’t get the remittance journeys or wording');
+  assert.ok(/no journeys yet/.test(jed.reviewNote)); ok('the form says when a vertical has no journeys yet');
+  const vlist = (await (await admin('/api/admin/verticals')).json()).verticals; const lendJ = vlist.find((v) => v.id === 'lending');
+  const sv = await admin('/api/admin/verticals', { method: 'POST', body: JSON.stringify({ ...lend, journeys: { title: 'The lending journey', intro: 'From application to repayment.', items: [{ tag: 'Repayments', title: 'Repay from your bank', need: 'Collect each instalment by bank.', products: ['rec', 'not a product!'], powers: 'A Payment Agreement.' }] } }) });
+  assert.equal(sv.status, 200);
+  const JL = 'jl-' + Date.now().toString(36);
+  await admin('/api/admin/builder', { method: 'POST', body: JSON.stringify({ action: 'create', slug: JL, by: 'Aliaa', clientName: 'Lend Co', template: 'standard', vertical: 'lending' }) });
+  const jld = (await (await admin(`/api/admin/builder?slug=${JL}`)).json()).draft;
+  assert.ok(jld.journeys.title === 'The lending journey' && jld.journeys.items.length === 1 && jld.journeys.items[0].title === 'Repay from your bank' && jld.journeys.items[0].products.join() === 'rec'); ok('journeys set on the Verticals page are used for that vertical’s new blueprints');
   console.log(`\n${passed} checks passed.`);
 } catch (err) {
   console.error('\nFAILED after ' + passed + ' checks:', err.message);

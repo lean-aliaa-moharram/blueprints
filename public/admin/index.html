@@ -222,6 +222,7 @@ details.flat>summary{display:none}
 .finds h4{margin:0 0 2px;font-size:14px}
 .fgroup{margin:10px 0 0}
 .fh{font-weight:700;font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px}
+.fh .never{text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px}
 .fitem{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin:0 0 6px;font-weight:400}
 .fitem input{margin-top:3px}
 .fref{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
@@ -229,6 +230,7 @@ details.flat>summary{display:none}
 .uploadalt{margin:18px 0 0;max-width:900px}
 .uploadalt>summary{cursor:pointer;color:var(--muted);font-weight:600}
 @media (max-width:760px){.wgrid{grid-template-columns:1fr}.segrow{grid-template-columns:1fr}}
+.vjour{border-left:3px solid var(--bright,#3dd68c)}
 .pfamhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .pfamhead:first-child{margin-top:4px}
 .seg.sm span{padding:3px 11px;font-size:12px}
@@ -246,6 +248,16 @@ details.flat>summary{display:none}
 .vph{font-weight:600;font-size:13px;margin:6px 0 4px}
 .fitem.dim>span{color:var(--muted)}
 .likeof{display:block;font-size:12px;color:var(--muted);font-style:italic;margin-top:2px}
+.prow2{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.prow2 input[type=checkbox]{margin-top:8px}
+.prow2 textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13.5px;line-height:1.45;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);resize:vertical}
+.prow2.off textarea{opacity:.55}
+.psrc{font-size:12px;color:var(--muted);margin-top:3px}
+.pvdlg{width:96vw;height:94vh;max-width:none;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;background:var(--card)}
+.pvdlg[open]{display:flex}
+.pvbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.pvbar .sp{flex:1}
+.pvdlg iframe{flex:1;width:100%;border:0;background:#fff}
 /* Products page */
 .pfam{margin:0 0 26px}
 .pfam>h3{margin:0 0 8px;font-size:16px}
@@ -669,7 +681,12 @@ function renderWhatsNew() {
 
 // ---------- add a blueprint ----------
 function renderAdd() {
-  const copyable = data.blueprints.filter((b) => b.source === 'builder');
+  // Copy from any blueprint: a form-built one's latest draft, or any published page (uploaded ones included)
+  const copyOpts = data.blueprints.flatMap((b) => [
+    ...(b.source === 'builder' ? [{ v: `${b.slug}|draft`, t: `${nameOf(b)} (latest draft)` }] : []),
+    ...(b.published ? [{ v: `${b.slug}|published`, t: `${nameOf(b)} (published version${b.source === 'builder' ? '' : ', uploaded'})` }] : []),
+  ]);
+  const copyable = copyOpts;
   const seg = (name, label, hint) => `<div class="segrow"><div class="seglabel">${label}</div>
       <div class="seg" role="radiogroup" aria-label="${label} integration"><label><input type="radio" name="${name}" value="sdk"><span>SDK</span></label><label><input type="radio" name="${name}" value="api" checked><span>API</span></label></div>
       <div class="hint seghint" id="${name}Hint">${hint}</div></div>`;
@@ -692,20 +709,20 @@ function renderAdd() {
           ${copyable.length ? `<label class="scard"><input type="radio" name="bStart" value="copy"><b>A copy</b><span>Another blueprint’s content, for a new client.</span></label>` : ''}
           <label class="scard"><input type="radio" name="bStart" value="blank"><b>Blank</b><span>An empty form.</span></label>
         </div>
-        ${copyable.length ? `<div class="sopt" data-for="copy" hidden><label for="bCopy">Copy of</label><select id="bCopy">${copyable.map((b) => `<option value="${esc(b.slug)}">${esc(nameOf(b))}</option>`).join('')}</select><div class="hint">Keeps its integration and products.</div></div>` : ''}
+        ${copyable.length ? `<div class="sopt" data-for="copy" hidden><label for="bCopy">Copy of</label><select id="bCopy">${copyOpts.map((o) => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join('')}</select><div class="hint">Keeps its content, integration and products; its logo and screenshots are removed. Uploaded blueprints are read into the form, as with Edit in form.</div></div>` : ''}
         <label class="notestoggle"><input type="checkbox" id="bUseNotes"><span><b>Add meeting notes</b> The products and pain points they mention are added to what you start from.</span></label>
         <div class="sopt" id="notesArea" hidden>
           <label for="bNotes">Meeting notes or transcript</label>
           <textarea id="bNotes" rows="7" placeholder="Paste notes or a call transcript here"></textarea>
           <div class="notesrow"><label class="ghost mini btnlike">Or upload a file<input type="file" id="bNotesFile" accept=".txt,.md,.docx,.pdf,.vtt,.srt" hidden></label><span class="hint" id="bNotesFileName">Word, PDF, text or a transcript (.vtt).</span>
             <button type="button" class="primary" id="bRead">Read the notes</button></div>
-          <div id="finds"></div>
         </div></section>
       <section class="wstep" id="intStep"><h3><span class="wn">3</span>Integration</h3>
         ${seg('mPayments', 'Payments', 'SDK: Lean’s screens through the Link SDK. API: the client builds its own screens, with a Consent Management Interface.')}
         ${seg('mData', 'Data', 'SDK: Lean’s screens through the Link SDK. API: the client builds its own screens.')}
         <p class="hint">Each choice brings its own products and guides. You can change it later in the form.</p></section>
-      <div class="wsubmit"><button class="primary" type="submit" id="bGo">Create blueprint</button><div class="err" id="bErr" role="alert"></div></div>
+      <section class="wstep" id="revStep" hidden><h3><span class="wn">4</span>Review</h3><div id="finds"></div></section>
+      <div class="wsubmit"><button class="primary" type="submit" id="bGo">Create blueprint</button><button class="ghost" type="button" id="bPreview">Preview</button><div class="err" id="bErr" role="alert"></div></div>
     </form>
     <details class="uploadalt"><summary>Already have a finished HTML file? Upload it</summary>
       <form class="choice" id="uploadForm">
@@ -718,6 +735,7 @@ function renderAdd() {
         <div class="err" id="upErr" role="alert"></div>
       </form></details>`;
   let slugTouched = false, found = null, verticalTouched = false;
+  const painEdits = {}, prodOff = new Set();   // what's been edited or unticked in the review, by key
   $('bSlug').addEventListener('input', () => { slugTouched = true; });
   $('bName').addEventListener('input', () => { if (!slugTouched) $('bSlug').value = slugify($('bName').value); });
   const start = () => (document.querySelector('input[name="bStart"]:checked') || {}).value || 'tpl';
@@ -730,28 +748,40 @@ function renderAdd() {
   const STOP = new Set('with that this from have they their there them about into over more than when what which your while very also just only some like will would could should been being were does make made'.split(' '));
   const words = (t) => new Set(String(t).toLowerCase().replace(/\*\*/g, '').match(/[a-z]{4,}/g)?.filter((w) => !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, '')) || []);
   const similar = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return false; let n = 0; for (const w of A) if (B.has(w)) n++; return n >= 2 && n / Math.min(A.size, B.size) >= 0.3; };
-  const drawFinds = () => {
-    if (!found || !notesOn()) { $('finds').innerHTML = ''; return; }
-    const s = start(), q = (t) => `<q>${esc(t)}</q>`, M = methods();
-    // Products: the template's (when it's the base), and what the notes add
+  // The review: products and pain points from the base and the notes, to choose and edit
+  const reviewRows = () => {
+    const s = start(), v = vert(), M = methods();
     const fromTpl = s === 'tpl' ? [...new Set(templateProducts.map(asChosen).filter(Boolean))].filter((id) => products.some((p) => p.id === id)) : [];
-    const fromNotes = [...new Map(found.products.map((f) => ({ ...f, shown: asChosen(f.id) })).filter((f) => f.shown && !fromTpl.includes(f.shown)).map((f) => [f.shown, f])).values()];
-    const noteFor = (id) => found.products.find((f) => asChosen(f.id) === id);
-    const pname = (id) => (products.find((p) => p.id === id) || {}).name || id;
-    const v = vert(), vRows = s === 'tpl' && v ? (v.painRows || []) : [];
-    const pains = found.pains.map((t, i) => ({ t, i, like: vRows.find((r) => similar(t, r.pain)) }));
-    $('finds').innerHTML = `<div class="finds">
-      <h4>What goes into the blueprint</h4><p class="hint">Read ${found.lines} lines. Untick anything you don’t want.</p>
-      <div class="fgroup"><div class="fh">Products</div>
-        ${fromTpl.map((id) => { const n = noteFor(id); return `<label class="fitem"><input type="checkbox" data-fprod="${esc(id)}" checked><span><b>${esc(pname(id))}</b> <span class="tag">From the template</span>${n ? ` <span class="tag">Also in the notes</span>${q(n.evidence[0])}` : ''}</span></label>`; }).join('')}
-        ${fromNotes.map((f) => `<label class="fitem"><input type="checkbox" data-fprod="${esc(f.shown)}" checked><span><b>${esc(pname(f.shown))}</b> <span class="tag new">From the notes</span>${f.shown !== f.id ? ` <span class="tag">${M[(products.find((p) => p.id === f.shown) || {}).family] === 'sdk' ? 'SDK' : 'API'} version of ${esc(f.name)}</span>` : ''}${q(f.evidence[0])}</span></label>`).join('')}
-        ${!fromTpl.length && !fromNotes.length ? '<p class="never">No products recognised in the notes.</p>' : ''}
-        ${s === 'copy' ? '<p class="hint">The copy keeps all its own products; these are added to them.</p>' : ''}</div>
-      <div class="fgroup"><div class="fh">Pain points</div>
-        ${vRows.length ? `<div class="vpains"><div class="vph">From the ${esc(v.name)} vertical <span class="never">(${vRows.length}, kept)</span></div><ul>${vRows.map((r) => `<li>${esc(String(r.pain).replace(/\*\*/g, ''))}</li>`).join('')}</ul></div>` : ''}
-        ${pains.length ? `<div class="vph">${vRows.length ? 'Added from the notes' : 'From the notes'}</div>${pains.map((p) => `<label class="fitem${p.like ? ' dim' : ''}"><input type="checkbox" data-fpain="${p.i}"${p.like ? '' : ' checked'}><span>${esc(p.t)}${p.like ? `<span class="likeof">Similar to the vertical’s “${esc(String(p.like.pain).replace(/\*\*/g, ''))}”, so it’s unticked. Tick it to add it anyway.</span>` : ''}</span></label>`).join('')}` : `<p class="never">${vRows.length ? 'No other pain points in the notes.' : 'None found in the notes.'}</p>`}</div>
-      ${found.timeline.length || found.questions.length ? `<div class="fgroup"><div class="fh">For you to follow up <span class="never">(not added to the blueprint)</span></div><ul class="fref">${[...new Set([...found.timeline, ...found.questions])].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-    </div>`;
+    const noteProds = found && notesOn() ? [...new Map(found.products.map((f) => ({ ...f, shown: asChosen(f.id) })).filter((f) => f.shown && !fromTpl.includes(f.shown)).map((f) => [f.shown, f])).values()] : [];
+    const vRows = s === 'tpl' && v ? (v.painRows || []).map((r, i) => ({ key: `v:${v.id}:${i}`, src: 'vertical', group: r.group, pain: r.pain, solve: r.solve, advantage: r.advantage })) : [];
+    const nRows = found && notesOn() ? found.pains.map((t, i) => ({ key: `n:${i}`, src: 'notes', group: 'business', pain: t, solve: '', advantage: '', like: vRows.find((r) => similar(t, r.pain)) })) : [];
+    for (const r of [...vRows, ...nRows]) { const e = painEdits[r.key]; r.on = e ? e.on : !r.like; if (e && typeof e.pain === 'string') r.pain = e.pain; }
+    return { s, v, M, fromTpl, noteProds, vRows, nRows };
+  };
+  const drawFinds = () => {
+    const { s, v, M, fromTpl, noteProds, vRows, nRows } = reviewRows();
+    const q = (t) => `<q>${esc(t)}</q>`, pname = (id) => (products.find((p) => p.id === id) || {}).name || id;
+    const noteFor = (id) => found && notesOn() ? found.products.find((f) => asChosen(f.id) === id) : null;
+    const show = fromTpl.length || noteProds.length || vRows.length || nRows.length || (s === 'copy' && found && notesOn());
+    $('revStep').hidden = !show;
+    if (!show) { $('finds').innerHTML = ''; return; }
+    const prodRow = (id, tags, quote) => `<label class="fitem"><input type="checkbox" data-fprod="${esc(id)}"${prodOff.has(id) ? '' : ' checked'}><span><b>${esc(pname(id))}</b> ${tags}${quote ? q(quote) : ''}</span></label>`;
+    const painRow = (r) => `<div class="prow2${r.on ? '' : ' off'}"><input type="checkbox" data-pkey="${esc(r.key)}"${r.on ? ' checked' : ''} aria-label="Include this pain point">
+        <div><textarea data-ptext="${esc(r.key)}" rows="2" aria-label="Pain point">${esc(String(r.pain).replace(/\*\*/g, ''))}</textarea>
+        <div class="psrc">${r.src === 'vertical' ? `From the ${esc(v.name)} vertical${r.solve ? ', with how Lean solves it' : ''}` : `From the notes${r.like ? `: similar to the vertical’s “${esc(String(r.like.pain).replace(/\*\*/g, ''))}”, so it’s unticked` : '. Add how Lean solves it in the form.'}`}</div></div></div>`;
+    $('finds').innerHTML = `
+      ${found && notesOn() ? `<p class="hint">Read ${found.lines} lines of notes.</p>` : ''}
+      ${fromTpl.length || noteProds.length ? `<div class="fgroup"><div class="fh">Products</div>
+        ${fromTpl.map((id) => { const n = noteFor(id); return prodRow(id, `<span class="tag">From the template</span>${n ? ' <span class="tag">Also in the notes</span>' : ''}`, n && n.evidence[0]); }).join('')}
+        ${noteProds.map((f) => prodRow(f.shown, `<span class="tag new">From the notes</span>${f.shown !== f.id ? ` <span class="tag">${M[(products.find((p) => p.id === f.shown) || {}).family] === 'sdk' ? 'SDK' : 'API'} version of ${esc(f.name)}</span>` : ''}`, f.evidence[0])).join('')}
+        ${s === 'copy' ? '<p class="hint">The copy keeps all its own products; these are added to them.</p>' : ''}</div>` : ''}
+      ${vRows.length || nRows.length ? `<div class="fgroup"><div class="fh">Pain points <span class="never">tick the ones to show, and edit the wording</span></div>
+        ${vRows.map(painRow).join('')}${nRows.map(painRow).join('')}
+        ${s === 'copy' ? '<p class="hint">The copy keeps its own pain points; ticked ones from the notes are added after them.</p>' : ''}</div>` : ''}
+      ${found && notesOn() && (found.timeline.length || found.questions.length) ? `<div class="fgroup"><div class="fh">For you to follow up <span class="never">(not added to the blueprint)</span></div><ul class="fref">${[...new Set([...found.timeline, ...found.questions])].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}`;
+    $('finds').querySelectorAll('[data-fprod]').forEach((c) => c.addEventListener('change', () => { if (c.checked) prodOff.delete(c.dataset.fprod); else prodOff.add(c.dataset.fprod); }));
+    $('finds').querySelectorAll('[data-pkey]').forEach((c) => c.addEventListener('change', () => { const k = c.dataset.pkey; painEdits[k] = { ...(painEdits[k] || {}), on: c.checked }; c.closest('.prow2').classList.toggle('off', !c.checked); }));
+    $('finds').querySelectorAll('[data-ptext]').forEach((t) => t.addEventListener('input', () => { const k = t.dataset.ptext; const r = [...vRows, ...nRows].find((x) => x.key === k); painEdits[k] = { on: r ? r.on : true, ...(painEdits[k] || {}), pain: t.value }; }));
   };
   const showStart = () => {
     document.querySelectorAll('.sopt[data-for]').forEach((d) => { d.hidden = d.dataset.for !== start(); });
@@ -781,29 +811,51 @@ function renderAdd() {
     } catch (err) { $('bErr').textContent = err.message; }
     finally { btn.disabled = false; btn.textContent = 'Read the notes again'; }
   });
+  // The request to create, shared by Preview (a dry run) and Create
+  const buildBody = () => {
+    const by = $('bBy').value.trim(), slug = $('bSlug').value.trim(), clientName = $('bName').value.trim();
+    if (!clientName) { $('bName').focus(); throw new Error('Add the client name.'); }
+    const s = start();
+    if (notesOn() && !found) { $('bRead').focus(); throw new Error('Read the notes first, so you can check what goes in.'); }
+    const body = { action: 'create', slug, by, clientName, ownerEmail: myEmail() || undefined, vertical: $('bVertical').value || undefined };
+    if (s !== 'copy') body.methods = methods();
+    if (s === 'tpl') body.template = 'standard';
+    else if (s === 'copy') { const [slugC, ver] = $('bCopy').value.split('|'); body.copyFrom = slugC; body.copyVersion = ver; }
+    else body.content = newContent(clientName, by);
+    const { fromTpl, noteProds, vRows, nRows } = reviewRows();
+    const prods = [...fromTpl, ...noteProds.map((f) => f.shown)].filter((id) => !prodOff.has(id));
+    if (s === 'copy') { if (notesOn() && found) body.picks = { products: noteProds.map((f) => f.shown).filter((id) => !prodOff.has(id)), pains: nRows.filter((r) => r.on).map((r) => r.pain), addOnly: true }; }
+    else if (fromTpl.length || noteProds.length || vRows.length || nRows.length) {
+      body.picks = { products: prods, painRows: [...vRows, ...nRows].filter((r) => r.on && String(r.pain).trim()).map((r) => ({ group: r.group, pain: r.pain, solve: r.solve || '', advantage: r.advantage || '' })) };
+      if (!fromTpl.length && !noteProds.length) delete body.picks.products;
+    }
+    return body;
+  };
+  $('bPreview').addEventListener('click', async () => {
+    const btn = $('bPreview'); $('bErr').textContent = '';
+    let body; try { body = buildBody(); } catch (err) { $('bErr').textContent = err.message; return; }
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try {
+      const { html } = await api('/api/admin/builder', { method: 'POST', body: JSON.stringify({ ...body, dryRun: true }) });
+      const dlg = document.createElement('dialog'); dlg.className = 'pvdlg';
+      dlg.innerHTML = `<div class="pvbar"><b>Preview: ${esc(body.clientName)}</b><span class="hint">Nothing is saved yet. Ticks here aren’t kept.</span><span class="sp"></span><button type="button" class="ghost" data-pv="back">Keep editing</button><button type="button" class="primary" data-pv="go">Create blueprint</button></div><iframe title="Preview of the blueprint"></iframe>`;
+      document.body.appendChild(dlg);
+      dlg.querySelector('iframe').srcdoc = html;
+      dlg.querySelector('[data-pv="back"]').addEventListener('click', () => { dlg.close(); dlg.remove(); });
+      dlg.querySelector('[data-pv="go"]').addEventListener('click', () => { dlg.close(); dlg.remove(); $('buildForm').requestSubmit(); });
+      dlg.addEventListener('close', () => dlg.remove());
+      dlg.showModal();
+    } catch (err) { $('bErr').textContent = err.message; }
+    finally { btn.disabled = false; btn.textContent = 'Preview'; }
+  });
   $('buildForm').addEventListener('submit', async (e) => {
     e.preventDefault(); const btn = $('bGo'); $('bErr').textContent = '';
-    const by = $('bBy').value.trim(); localStorage.setItem('leanbp-by', by);
-    const slug = $('bSlug').value.trim(), clientName = $('bName').value.trim();
-    if (!clientName) { $('bErr').textContent = 'Add the client name.'; $('bName').focus(); return; }
-    if (!SLUG_OK.test(slug)) { $('bErr').textContent = 'Use a short name with lowercase letters, digits and hyphens, e.g. "acme-remit".'; $('bSlug').focus(); return; }
-    const s = start();
-    if (notesOn() && !found) { $('bErr').textContent = 'Read the notes first, so you can check what goes in.'; $('bRead').focus(); return; }
+    localStorage.setItem('leanbp-by', $('bBy').value.trim());
+    if (!SLUG_OK.test($('bSlug').value.trim())) { $('bErr').textContent = 'Use a short name with lowercase letters, digits and hyphens, e.g. "acme-remit".'; $('bSlug').focus(); return; }
+    let body; try { body = buildBody(); } catch (err) { $('bErr').textContent = err.message; return; }
     btn.disabled = true;
-    try {
-      const body = { action: 'create', slug, by, clientName, ownerEmail: myEmail() || undefined, vertical: $('bVertical').value || undefined };
-      if (s !== 'copy') body.methods = methods();
-      if (s === 'tpl') body.template = 'standard';
-      else if (s === 'copy') body.copyFrom = $('bCopy').value;
-      else body.content = newContent(clientName, by);
-      if (notesOn() && found) body.picks = {
-        products: [...document.querySelectorAll('[data-fprod]:checked')].map((x) => x.dataset.fprod),
-        pains: [...document.querySelectorAll('[data-fpain]:checked')].map((x) => found.pains[Number(x.dataset.fpain)]),
-        addOnly: s === 'copy',
-      };
-      const row = await api('/api/admin/builder', { method: 'POST', body: JSON.stringify(body) });
-      await load(); openEditor(row);
-    } catch (err) { $('bErr').textContent = err.message; } finally { btn.disabled = false; }
+    try { const row = await api('/api/admin/builder', { method: 'POST', body: JSON.stringify(body) }); await load(); openEditor(row); }
+    catch (err) { $('bErr').textContent = err.message; } finally { btn.disabled = false; }
   });
   $('upFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -943,7 +995,13 @@ function productDialog(p, fam, method) {
 // ---------- verticals page ----------
 function onVerticalField(e) {
   if (selected !== VERT || !vstate) return;
-  const el = e.target; if (!el.dataset || el.dataset.v === undefined) return;
+  const el = e.target;
+  if (el.dataset && el.dataset.vjprod !== undefined) {   // a journey's Lean products
+    const vi = +el.dataset.vjprod, jx = vstate.list[vi].journeys.items[+el.dataset.j];
+    const set = new Set(jx.products || []); el.checked ? set.add(el.value) : set.delete(el.value); jx.products = [...set];
+    vstate.dirty.add(vi); return;
+  }
+  if (!el.dataset || el.dataset.v === undefined) return;
   const vi = +el.dataset.v; const v = vstate.list[vi]; if (!v) return;
   const val = el.dataset.lines ? el.value.split('\n').map((x) => x.trim()).filter(Boolean) : el.value;
   const parts = el.dataset.f.split('.'); let t = v; for (const k of parts.slice(0, -1)) t = t[k]; t[parts[parts.length - 1]] = val;
@@ -955,11 +1013,14 @@ async function onVerticalClick(e) {
   const d = b.dataset; const L = vstate.list;
   if (d.vaddrow !== undefined) { L[+d.vaddrow].painRows.push({ group: 'business', pain: '', solve: '', advantage: '' }); vstate.dirty.add(+d.vaddrow); renderVerticals(); }
   else if (d.vdelrow !== undefined) { L[+d.vdelrow].painRows.splice(+d.i, 1); vstate.dirty.add(+d.vdelrow); renderVerticals(); }
+  else if (d.vaddj !== undefined) { const v = L[+d.vaddj]; v.journeys.items.push({ tag: '', title: '', feature: '', need: '', products: [], powers: '' }); vstate.dirty.add(+d.vaddj); renderVerticals(); }
+  else if (d.vdelj !== undefined) { L[+d.vdelj].journeys.items.splice(+d.i, 1); vstate.dirty.add(+d.vdelj); renderVerticals(); }
+  else if (d.vmovej !== undefined) { const r = L[+d.vmovej].journeys.items; const i = +d.i, j = i + +d.d; [r[i], r[j]] = [r[j], r[i]]; vstate.dirty.add(+d.vmovej); renderVerticals(); }
   else if (d.vmove !== undefined) { const r = L[+d.vmove].painRows; const i = +d.i, j = i + +d.d; [r[i], r[j]] = [r[j], r[i]]; vstate.dirty.add(+d.vmove); renderVerticals(); }
   else if (d.vsave !== undefined) {
     const vi = +d.vsave; const v = L[vi]; $('vErr').textContent = '';
     try {
-      const saved = await api('/api/admin/verticals', { method: 'POST', body: JSON.stringify({ id: v.id, name: v.name, painIntro: v.painIntro, painRows: v.painRows, useCases: v.useCases, by: byName() }) });
+      const saved = await api('/api/admin/verticals', { method: 'POST', body: JSON.stringify({ id: v.id, name: v.name, painIntro: v.painIntro, painRows: v.painRows, useCases: v.useCases, by: byName() , journeys: v.journeys || { title: '', intro: '', items: [] }}) });
       L[vi] = saved; vstate.dirty.delete(vi); verticals = (await api('/api/admin/verticals')).verticals; status(`${saved.name} saved`); renderVerticals();
     } catch (err) { $('vErr').textContent = err.message; }
   } else if (d.vdel !== undefined) {
@@ -986,12 +1047,24 @@ function renderVerticals() {
         <button type="button" class="ghost danger" data-vdelrow="${vi}" data-i="${i}">Remove</button></div>
       <div class="g2"><div><label>Group</label><select data-v="${vi}" data-f="painRows.${i}.group"><option value="business"${r.group !== 'technical' ? ' selected' : ''}>Business impact</option><option value="technical"${r.group === 'technical' ? ' selected' : ''}>Technical &amp; operational</option></select></div></div>
       <div class="g3">${['pain', 'solve', 'advantage'].map((k) => `<div><label>${{ pain: 'Pain point or opportunity', solve: 'How Lean solves it', advantage: 'Advantage' }[k]}</label><textarea data-v="${vi}" data-f="painRows.${i}.${k}" rows="3">${esc(r[k])}</textarea></div>`).join('')}</div></div>`;
+  const vjourney = (vi, jx, i, n) => `<div class="item vjour">
+      <div class="itemhead"><strong>Journey ${i + 1}</strong>
+        <button type="button" class="ghost" data-vmovej="${vi}" data-i="${i}" data-d="-1"${i === 0 ? ' disabled' : ''}>Up</button>
+        <button type="button" class="ghost" data-vmovej="${vi}" data-i="${i}" data-d="1"${i === n - 1 ? ' disabled' : ''}>Down</button>
+        <button type="button" class="ghost danger" data-vdelj="${vi}" data-i="${i}">Remove</button></div>
+      <div class="g2"><div><label>Tag</label><input type="text" data-v="${vi}" data-f="journeys.items.${i}.tag" value="${esc(jx.tag || '')}" maxlength="80" placeholder="e.g. Funding a {client} balance"></div>
+        <div><label>Title</label><input type="text" data-v="${vi}" data-f="journeys.items.${i}.title" value="${esc(jx.title || '')}" maxlength="120" placeholder="e.g. Top up from your bank"></div></div>
+      <div class="g2"><div><label>The client’s feature</label><textarea data-v="${vi}" data-f="journeys.items.${i}.feature" rows="2">${esc(jx.feature || '')}</textarea></div>
+        <div><label>The need</label><textarea data-v="${vi}" data-f="journeys.items.${i}.need" rows="2">${esc(jx.need || '')}</textarea></div></div>
+      <div><label>Lean products</label><div class="checks">${products.map((pp) => `<label class="opt"><input type="checkbox" data-vjprod="${vi}" data-j="${i}" value="${esc(pp.id)}"${(jx.products || []).includes(pp.id) ? ' checked' : ''}> ${esc(pp.name)}</label>`).join('')}</div></div>
+      <div><label>How Lean powers it</label><textarea data-v="${vi}" data-f="journeys.items.${i}.powers" rows="2">${esc(jx.powers || '')}</textarea></div></div>`;
+  for (const v of L) { v.journeys = v.journeys && typeof v.journeys === 'object' ? v.journeys : { title: '', intro: '', items: [] }; v.journeys.items = v.journeys.items || []; }
   $('main').innerHTML = `
     <h2>Verticals</h2>
     <p class="sub">Each vertical’s pain points, introduction and use cases. New blueprints started from the standard template pick them up; blueprints already made keep their own copy. Use {client} where the client’s name should go, and **double asterisks** for bold.</p>
     <div class="err" id="vErr" role="alert"></div>
     ${L.map((v, vi) => `<details class="sec" data-vsec="${vi}"${vstate.open.has(vi) ? ' open' : ''}>
-      <summary><span>${esc(v.name || 'New vertical')} <span class="cnt">${v.painRows.length} ${v.painRows.length === 1 ? 'pain point' : 'pain points'}, ${v.useCases.length} ${v.useCases.length === 1 ? 'use case' : 'use cases'}${vstate.dirty.has(vi) ? ', unsaved changes' : ''}</span></span></summary>
+      <summary><span>${esc(v.name || 'New vertical')} <span class="cnt">${v.painRows.length} ${v.painRows.length === 1 ? 'pain point' : 'pain points'}, ${v.useCases.length} ${v.useCases.length === 1 ? 'use case' : 'use cases'}, ${(v.journeys && v.journeys.items || []).length} ${(v.journeys && v.journeys.items || []).length === 1 ? 'journey' : 'journeys'}${vstate.dirty.has(vi) ? ', unsaved changes' : ''}</span></span></summary>
       <div class="secbody">
         <div class="g2"><div><label>Name</label><input type="text" data-v="${vi}" data-f="name" value="${esc(v.name)}" maxlength="60"></div></div>
         <div><label>Introduction</label><textarea data-v="${vi}" data-f="painIntro" rows="3" placeholder="Shown above the pain points table">${esc(v.painIntro)}</textarea></div>
@@ -999,6 +1072,12 @@ function renderVerticals() {
         ${v.painRows.map((r, i) => vrow(vi, r, i, v.painRows.length)).join('') || '<div class="hint">No pain points yet.</div>'}
         <div><button type="button" class="ghost" data-vaddrow="${vi}">Add a pain point</button></div>
         <div><label>Use cases</label><textarea data-v="${vi}" data-f="useCases" data-lines="1" rows="3" placeholder="One per line, e.g. Wallet top-up">${esc(v.useCases.join('\n'))}</textarea><div class="hint">Shown as chips in the journeys section.</div></div>
+        <div class="subhead">Journeys</div>
+        <div class="hint">New blueprints started from the template get these journeys. Without any, the journeys section starts empty.</div>
+        <div class="g2"><div><label>Section title</label><input type="text" data-v="${vi}" data-f="journeys.title" value="${esc(v.journeys.title || '')}" maxlength="120" placeholder="The customer journeys, end to end"></div></div>
+        <div><label>Section introduction</label><textarea data-v="${vi}" data-f="journeys.intro" rows="2" placeholder="Each journey maps a {client} flow to the Lean product that powers it.">${esc(v.journeys.intro || '')}</textarea></div>
+        ${v.journeys.items.map((jx, i) => vjourney(vi, jx, i, v.journeys.items.length)).join('') || '<div class="hint">No journeys yet.</div>'}
+        <div><button type="button" class="ghost" data-vaddj="${vi}">Add a journey</button></div>
         <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
           <button type="button" class="ghost danger" data-vdel="${vi}">Delete vertical</button>
           <button type="button" class="primary" data-vsave="${vi}" style="height:38px">Save ${esc(v.name || 'vertical')}</button></div>
@@ -1006,7 +1085,7 @@ function renderVerticals() {
       </div></details>`).join('')}
     <div><button type="button" class="ghost" id="vAdd">Add a vertical</button></div>`;
   $('main').querySelectorAll('details[data-vsec]').forEach((el) => el.addEventListener('toggle', () => { const i = +el.dataset.vsec; el.open ? vstate.open.add(i) : vstate.open.delete(i); }));
-  $('vAdd').addEventListener('click', () => { L.push({ id: '', name: '', painIntro: '', painRows: [], useCases: [] }); vstate.open.add(L.length - 1); vstate.dirty.add(L.length - 1); renderVerticals(); });
+  $('vAdd').addEventListener('click', () => { L.push({ id: '', name: '', painIntro: '', painRows: [], useCases: [], journeys: { title: '', intro: '', items: [] } }); vstate.open.add(L.length - 1); vstate.dirty.add(L.length - 1); renderVerticals(); });
 }
 
 // ---------- blueprint page (links and visits) ----------
